@@ -49,10 +49,13 @@
 #include <algorithm>
 #include <utility>
 
+#include <regex>
+
 using namespace clang::ast_matchers;
 using namespace clang::driver;
 using namespace clang::tooling;
 using namespace llvm;
+using namespace std;
 
 LLVM_INSTANTIATE_REGISTRY(clang::tidy::ClangTidyModuleRegistry)
 
@@ -180,6 +183,59 @@ public:
       reportNote(Note);
   }
 
+  void write2XML(raw_ostream &OS, const ClangTidyError &Error){
+    SourceLocation loc = getLocation(Error.Message.FilePath, Error.Message.FileOffset);
+    PresumedLoc PLoc = SourceMgr.getPresumedLoc(loc);
+    int line = -1;
+    int col = -1;
+    if(PLoc.isValid()){
+      line = PLoc.getLine();
+      col = PLoc.getColumn();
+    }
+    OS << "\t<Diagnostic>" << "\n";
+      OS << "\t\t<DiagnosticName>" << Error.DiagnosticName << "</DiagnosticName>" << "\n";
+      OS << "\t\t<DiagnosticMessage>" << "\n";
+        OS << "\t\t\t<Message>" << escapeStr(Error.Message.Message) << "</Message>" << "\n";
+        OS << "\t\t\t<FilePath>" << escapeStr(Error.Message.FilePath) << "</FilePath>" << "\n";
+        OS << "\t\t\t<FileOffset>" << Error.Message.FileOffset << "</FileOffset>" << "\n";
+        OS << "\t\t\t<Line>" << line << "</Line>" << "\n";
+        OS << "\t\t\t<Column>" << col << "</Column>" << "\n";
+      OS << "\t\t</DiagnosticMessage>" << "\n";
+      OS << "\t\t<Level>" <<  static_cast<std::underlying_type<clang::tooling::Diagnostic::Level>::type>(Error.DiagLevel) << "</Level>" <<"\n";
+      if(Error.Notes.size()>0){
+        OS << "\t\t<Notes>" << "\n";
+          for(auto Note : Error.Notes){
+            PresumedLoc notePLoc = SourceMgr.getPresumedLoc(getLocation(Note.FilePath, Note.FileOffset));
+       
+            int noteLine = -1;
+            int noteCol = -1;
+            if(notePLoc.isValid()){
+              noteLine = notePLoc.getLine();
+              noteCol = notePLoc.getColumn();
+            }
+            OS << "\t\t\t<Note>" << "\n";
+            OS << "\t\t\t\t<Message>" << escapeStr(Note.Message) << "</Message>" << "\n";
+            OS << "\t\t\t\t<FilePath>" << escapeStr(Note.FilePath) << "</FilePath>" << "\n";
+            OS << "\t\t\t\t<FileOffset>" << Note.FileOffset << "</FileOffset>" << "\n";
+            OS << "\t\t\t\t<Line>" << noteLine << "</Line>" << "\n";
+            OS << "\t\t\t\t<Column>" << noteCol << "</Column>" << "\n";
+            OS << "\t\t\t</Note>" << "\n";
+          }
+        OS << "\t\t</Notes>" << "\n";
+      }
+      if(Error.Message.Fix.getNumItems()>0){
+        OS << "\t\t<FixItHints>" << "\n";
+          for(const auto &FileAndReplacements : Error.Message.Fix){
+            for (const auto &Repl : FileAndReplacements.second) {
+              OS << "\t\t\t<Fix>" << escapeStr(Repl.toString()) << "</Fix>" << "\n";
+            }
+          }
+        OS << "\t\t</FixItHints>" << "\n";
+      }
+    OS << "\t</Diagnostic>" << "\n";
+  }
+
+
   void Finish() {
     if (ApplyFixes && TotalFixes > 0) {
       Rewriter Rewrite(SourceMgr, LangOpts);
@@ -232,6 +288,20 @@ public:
   unsigned getWarningsAsErrorsCount() const { return WarningsAsErrors; }
 
 private:
+  string escapeStr(string str){
+        vector<pair<regex,string>> escapeChars;
+        escapeChars.push_back(make_pair(regex("&"), "&amp;"));
+        escapeChars.push_back(make_pair(regex(">"), "&gt;"));
+        escapeChars.push_back(make_pair(regex("<"), "&lt;"));
+        escapeChars.push_back(make_pair(regex("\'"), "&apos;"));
+        escapeChars.push_back(make_pair(regex("\""), "&quot;"));
+        escapeChars.push_back(make_pair(regex("\n"), "\\n"));
+        for(auto it : escapeChars){
+                str = regex_replace(str,it.first,it.second);
+        }
+        return str;
+  }
+
   SourceLocation getLocation(StringRef FilePath, unsigned Offset) {
     if (FilePath.empty())
       return SourceLocation();
@@ -565,8 +635,25 @@ runClangTidy(clang::tidy::ClangTidyContext &Context,
 void handleErrors(llvm::ArrayRef<ClangTidyError> Errors,
                   ClangTidyContext &Context, bool Fix,
                   unsigned &WarningsAsErrorsCount,
-                  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS) {
+                  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+                  StringRef XMLPath) {
   ErrorReporter Reporter(Context, Fix, BaseFS);
+
+  std::unique_ptr<llvm::raw_fd_ostream> OS;
+  if(!XMLPath.empty()){
+    //Opening xml file
+    std::error_code EC;
+    OS = llvm::make_unique<llvm::raw_fd_ostream>(XMLPath.str(), EC, llvm::sys::fs::F_None);
+    if (EC) {
+      llvm::errs() << "Error opening output file: " << EC.message() << '\n';
+      OS = nullptr;
+    } else {
+      //XML header
+      *OS << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << "\n";
+      *OS << "<Report>" << "\n";
+    }
+  }
+
   llvm::vfs::FileSystem &FileSystem =
       Reporter.getSourceManager().getFileManager().getVirtualFileSystem();
   auto InitialWorkingDir = FileSystem.getCurrentWorkingDirectory();
@@ -582,10 +669,22 @@ void handleErrors(llvm::ArrayRef<ClangTidyError> Errors,
       FileSystem.setCurrentWorkingDirectory(Error.BuildDirectory);
     }
     Reporter.reportDiagnostic(Error);
+
+    if(!XMLPath.empty() && OS){
+      Reporter.write2XML(*OS, Error);
+    }
+    
     // Return to the initial directory to correctly resolve next Error.
     FileSystem.setCurrentWorkingDirectory(InitialWorkingDir.get());
   }
   Reporter.Finish();
+  
+  if(!XMLPath.empty() && OS){
+    //Close the xml file
+    *OS << "</Report>\n";
+    OS->close();
+  }
+
   WarningsAsErrorsCount += Reporter.getWarningsAsErrorsCount();
 }
 

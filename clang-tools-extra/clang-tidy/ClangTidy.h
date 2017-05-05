@@ -88,7 +88,8 @@ runClangTidy(clang::tidy::ClangTidyContext &Context,
 void handleErrors(llvm::ArrayRef<ClangTidyError> Errors,
                   ClangTidyContext &Context, bool Fix,
                   unsigned &WarningsAsErrorsCount,
-                  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS);
+                  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+                  StringRef XMLPath);
 
 /// \brief Serializes replacements into YAML and writes them to the specified
 /// output stream.

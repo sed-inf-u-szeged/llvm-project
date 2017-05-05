@@ -223,6 +223,19 @@ over the real file system.
                                        cl::value_desc("filename"),
                                        cl::cat(ClangTidyCategory));
 
+static cl::opt<std::string> ExportXML("xml", cl::desc(R"(
+Writes out the diagnostics into the XML file.
+)"),
+                                        cl::value_desc("filename"),
+                                        cl::cat(ClangTidyCategory));                                        
+
+static cl::opt<std::string> ConfigFile("configfile", cl::desc(R"(
+Load custom configuration file.
+)"),
+                                        cl::value_desc("filename"),
+                                        cl::cat(ClangTidyCategory));
+                                        
+
 namespace clang {
 namespace tidy {
 
@@ -299,8 +312,18 @@ static std::unique_ptr<ClangTidyOptionsProvider> createOptionsProvider(
       return nullptr;
     }
   }
-  return llvm::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
-                                                OverrideOptions, std::move(FS));
+  if(!ConfigFile.empty()){
+    //custom config file
+    FileOptionsProvider::ConfigFileHandlers ConfigHandlers;
+    ConfigHandlers.emplace_back(ConfigFile, parseConfiguration);
+
+    return llvm::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
+                                                  OverrideOptions, ConfigHandlers);
+  } else {
+    //Default config file: .clang-tidy
+    return llvm::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
+                                                  OverrideOptions, std::move(FS));
+  }
 }
 
 llvm::IntrusiveRefCntPtr<vfs::FileSystem>
@@ -437,9 +460,15 @@ static int clangTidyMain(int argc, const char **argv) {
 
   unsigned WErrorCount = 0;
 
+  StringRef XMLPath = StringRef();
+  
+  if(!ExportXML.empty() && !Errors.empty()){
+    XMLPath = StringRef(ExportXML);
+  }
+  
   // -fix-errors implies -fix.
   handleErrors(Errors, Context, (FixErrors || Fix) && !DisableFixes, WErrorCount,
-               BaseFS);
+               BaseFS, XMLPath);
 
   if (!ExportFixes.empty() && !Errors.empty()) {
     std::error_code EC;
