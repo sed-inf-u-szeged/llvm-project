@@ -31,7 +31,7 @@ namespace clang
 		private:
 			bool equals(const UID& rhs) const override
 			{
-				assert(typeid(rhs) == typeid(CAM_Id) && "Invalid UID type!");
+				//assert(typeid(rhs) == typeid(CAM_Id) && "Invalid UID type!");
 
 				return myMangledName == static_cast<const CAM_Id&>(rhs).myMangledName;
 			}

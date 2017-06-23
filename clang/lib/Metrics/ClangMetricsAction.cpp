@@ -11,7 +11,7 @@ using namespace metrics::detail;
 
 std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInstance& ci, StringRef file)
 {
-	return std::make_unique<Consumer>(*this);
+	return std::unique_ptr<ASTConsumer>(new Consumer(*this));
 }
 
 bool metrics::detail::ClangMetricsAction::BeginSourceFileAction(clang::CompilerInstance& ci, clang::StringRef filename)

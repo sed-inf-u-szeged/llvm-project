@@ -36,14 +36,12 @@ namespace clang
 					// Returns the name of the operator/operand for easier identification during debugging.
 					virtual std::string getDebugName() const = 0;
 
+					// Returns the runtime type as string - since no typeid() is allowed.
+					virtual const char* getType() const = 0;
+
 					bool isOf(const OpBase& other) const
 					{
-						return typeid(*this) == typeid(other);
-					}
-
-					template<class T> bool isOf() const
-					{
-						return typeid(*this) == typeid(T);
+						return !strcmp(getType(), other.getType());
 					}
 				};
 
@@ -59,7 +57,7 @@ namespace clang
 				template<class T, class... Args>
 				auto add(Args&&... args) -> typename std::enable_if<std::is_base_of<Operator, T>::value, T&>::type
 				{
-					myOperators.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+					myOperators.push_back(std::unique_ptr<T>(new T(std::forward<Args>(args)...)));
 					return static_cast<T&>(*myOperators.back());
 				}
 
@@ -67,7 +65,7 @@ namespace clang
 				template<class T, class... Args>
 				auto add(Args&&... args) -> typename std::enable_if<std::is_base_of<Operand, T>::value, T&>::type
 				{
-					myOperands.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+					myOperands.push_back(std::unique_ptr<T>(new T(std::forward<Args>(args)...)));
 					return static_cast<T&>(*myOperands.back());
 				}
 
@@ -167,6 +165,7 @@ namespace clang
 						protected: \
 							using HalsteadStorage::Derive<clang::ClangT, HalsteadStorage::From>::Derive; \
 							std::string getDebugName() const override { return #OpName; } \
+							const char* getType() const override final { return #OpName; } \
 						}; \
 					} \
 				} \
@@ -182,13 +181,28 @@ namespace clang
 						{ \
 						private: \
 							std::string getDebugName() const override { return #OpName; } \
+							const char* getType() const override final { return #OpName; } \
 						}; \
 					} \
 				} \
 				class OpName final : public detail::OpName::Derive {}
 
+			#define HALSTEAD_MANUAL_DERIVE_BASE(OpName, From) \
+				namespace detail \
+				{ \
+					namespace OpName \
+					{ \
+						class Derive : public HalsteadStorage::From \
+						{ \
+						private: \
+							const char* getType() const override final { return #OpName; } \
+						}; \
+					} \
+				} \
+				class OpName final : public detail::OpName::Derive
+
 			#define HALSTEAD_DERIVE(OpName, ClangT) HALSTEAD_DERIVE_BASE(OpName, ClangT, Operator)
-			#define HALSTEAD_MANUAL_DERIVE(OpName) class OpName final : public HalsteadStorage::Operator
+			#define HALSTEAD_MANUAL_DERIVE(OpName) HALSTEAD_MANUAL_DERIVE_BASE(OpName, Operator)
 			#define HALSTEAD_AUTODERIVE(OpName) HALSTEAD_AUTODERIVE_BASE(OpName, Operator)
 			#include "HalsteadOperators.h"
 			#undef HALSTEAD_DERIVE
@@ -196,7 +210,7 @@ namespace clang
 			#undef HALSTEAD_AUTODERIVE
 
 			#define HALSTEAD_DERIVE(OpName, ClangT) HALSTEAD_DERIVE_BASE(OpName, ClangT, Operand)
-			#define HALSTEAD_MANUAL_DERIVE(OpName) class OpName final : public HalsteadStorage::Operand
+			#define HALSTEAD_MANUAL_DERIVE(OpName) HALSTEAD_MANUAL_DERIVE_BASE(OpName, Operand)
 			#define HALSTEAD_AUTODERIVE(OpName) HALSTEAD_AUTODERIVE_BASE(OpName, Operand)
 			#include "HalsteadOperands.h"
 			#undef HALSTEAD_DERIVE
@@ -205,6 +219,7 @@ namespace clang
 
 			#undef HALSTEAD_AUTODERIVE_BASE
 			#undef HALSTEAD_DERIVE_BASE
+			#undef HALSTEAD_MANUAL_DERIVE_BASE
 			}
 		}
 	}

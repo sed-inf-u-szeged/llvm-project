@@ -1,36 +1,7 @@
 add_clang_library(clangMetrics
   CAM_Id.cpp
   ClangMetricsAction.cpp
-  CMA_FunctionDefinitions.cpp
   invoke.cpp
   NodeVisitor.cpp
   Output.cpp
-
-  LINK_LIBS
-  clangStaticAnalyzerFrontend
-  clangStaticAnalyzerCheckers
-  clangStaticAnalyzerCore
-  clangTooling
-  clangFrontend
-  clangRewriteFrontend
-  clangSerialization
-  clangParse
-  clangSema
-  clangEdit
-  clangLex
-  clangAnalysis
-  clangRewrite
-  clangASTMatchers
-  clangAST
-  clangDriver
-  clangBasic
-
-  LLVMMC
-  LLVMMCParser
-  LLVMProfileData
-  LLVMBitReader
-  LLVMCore
-  LLVMSupport
-  LLVMOption
-  LLVMDemangle
   )

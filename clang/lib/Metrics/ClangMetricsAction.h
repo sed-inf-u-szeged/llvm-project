@@ -29,19 +29,25 @@ namespace clang
 			 */
 			class ClangMetricsAction final : public clang::ASTFrontendAction
 			{
+			private:
+				struct Comparator
+				{
+					bool operator()(std::pair<unsigned, unsigned> a, std::pair<unsigned, unsigned> b) const
+					{
+						if (a.first < b.first)
+							return true;
+
+						if (a.first > b.first)
+							return false;
+
+						return a.second < b.second;
+					}
+				};
+
 			public:
 				//! Constructor.
 				//!  \param output reference to the Output object where the results will be stored
-				ClangMetricsAction(Output& output) : rMyOutput(output), mySemicolonLocations([](auto a, auto b)
-				{
-					if (a.first < b.first)
-						return true;
-
-					if (a.first > b.first)
-						return false;
-
-					return a.second < b.second;
-				})
+				ClangMetricsAction(Output& output) : rMyOutput(output)
 				{}
 
 				//! If set to true, debug information will be printed to the standard output after
@@ -133,8 +139,7 @@ namespace clang
 				std::set<unsigned> myCodeLines;
 
 				// Stores locations where there are semicolons. A single record is a pair of row/column within the file.
-				typedef bool(*LocComp)(std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned>);
-				std::set<std::pair<unsigned, unsigned>, LocComp> mySemicolonLocations;
+				std::set<std::pair<unsigned, unsigned>, Comparator> mySemicolonLocations;
 
 				// McCC for the whole file. (starting from 1 becaus of McCC "plus 1" definition)
 				int myFileMcCC = 1;

@@ -36,6 +36,6 @@ bool metrics::invoke(Output& output, CompilationDatabase& compilations, const Co
 	};
 
 	// Create factory and invoke main program.
-	auto factory = std::make_unique<Factory>(output, options);
+	std::unique_ptr<Factory> factory(new Factory(output, options));
 	return !tool.run(factory.get());
 }

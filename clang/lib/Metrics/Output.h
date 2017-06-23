@@ -66,8 +66,8 @@ namespace clang
 				ItHelper(T b, T e) : myBegin(b), myEnd(e)
 				{}
 
-				auto begin() { return myBegin; }
-				auto end() { return myEnd; }
+				T begin() { return myBegin; }
+				T end() { return myEnd; }
 
 			private:
 				T myBegin, myEnd;
@@ -137,7 +137,7 @@ namespace clang
 		private:
 			UIDFactory& rMyFactory;
 
-			template<class T> auto getMetrics(const T& from, const UID& id) const
+			template<class T> auto getMetrics(const T& from, const UID& id) const -> decltype(&from.find(std::shared_ptr<const UID>())->second)
 			{
 				std::shared_ptr<const UID> dummy(std::shared_ptr<const UID>(), &id);
 				auto it = from.find(dummy);
@@ -209,11 +209,11 @@ namespace clang
 
 
 			//! Iterator wrappers for use in range based for loops.
-			auto functions() { return ItHelper<function_iterator>(function_begin(), function_end()); }
-			auto classes() { return ItHelper<class_iterator>(class_begin(), class_end()); }
-			auto enums() { return ItHelper<enum_iterator>(enum_begin(), enum_end()); }
-			auto namespaces() { return ItHelper<namespace_iterator>(namespace_begin(), namespace_end()); }
-			auto files() { return ItHelper<file_iterator>(file_begin(), file_end()); }
+			ItHelper<function_iterator> functions() { return ItHelper<function_iterator>(function_begin(), function_end()); }
+			ItHelper<class_iterator> classes() { return ItHelper<class_iterator>(class_begin(), class_end()); }
+			ItHelper<enum_iterator> enums() { return ItHelper<enum_iterator>(enum_begin(), enum_end()); }
+			ItHelper<namespace_iterator> namespaces() { return ItHelper<namespace_iterator>(namespace_begin(), namespace_end()); }
+			ItHelper<file_iterator> files() { return ItHelper<file_iterator>(file_begin(), file_end()); }
 		};
 	}
 }

@@ -85,5 +85,5 @@ std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* d
 		ss << "<missing id>";
 	}
 
-	return std::make_unique<CAM_Id>(ss.str());
+	return std::unique_ptr<CAM_Id>(new CAM_Id(ss.str()));
 }
