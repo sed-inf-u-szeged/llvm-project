@@ -182,7 +182,7 @@ HALSTEAD_DERIVE(FunctionOperator, FunctionDecl)
 
 	std::string getDebugName() const override
 	{
-		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned)pMyData);
+		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned long)pMyData);
 		return Derive::getDebugName() + " (" + std::move(name) + ")";
 	}
 

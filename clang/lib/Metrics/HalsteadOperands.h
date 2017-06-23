@@ -10,7 +10,7 @@ HALSTEAD_DERIVE(ValueDeclOperand, NamedDecl)
 
 	std::string getDebugName() const override
 	{
-		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned)pMyData);
+		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned long)pMyData);
 		return Derive::getDebugName() + " (" + std::move(name) + ")";
 	}
 
@@ -28,7 +28,7 @@ HALSTEAD_DERIVE(LabelDeclOperand, LabelDecl)
 
 	std::string getDebugName() const override
 	{
-		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned)pMyData);
+		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned long)pMyData);
 		return Derive::getDebugName() + " (" + std::move(name) + ")";
 	}
 

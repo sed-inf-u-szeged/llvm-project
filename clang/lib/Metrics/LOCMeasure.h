@@ -113,8 +113,8 @@ namespace metrics
 				MergeOption_helper(const Map& subMap, bool isIgnore, bool rangeOnly) : mySubMap(subMap), myIsIgnore(isIgnore), myIsRangeOnly(rangeOnly)
 				{}
 
-				friend MergeOption_helper LOCMeasure::merge(const Map&, bool);
-				friend MergeOption_helper LOCMeasure::ignore(const Map&, bool);
+				friend MergeOption_helper LOCMeasure::merge<Map>(const Map&, bool);
+				friend MergeOption_helper LOCMeasure::ignore<Map>(const Map&, bool);
 
 			public:
 				const Map& getMap() const { return mySubMap; }

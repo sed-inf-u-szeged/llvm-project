@@ -114,7 +114,7 @@ private:
 		using namespace clang;
 
 		ASTContext& con = rMyAction.getCompilerInstance().getASTContext();
-		auto parents = con.getParents(*node);
+		ASTContext::DynTypedNodeList parents = con.getParents(*node);
 
 		auto it = parents.begin();
 		if (it == parents.end())
