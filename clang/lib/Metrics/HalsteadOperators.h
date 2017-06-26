@@ -182,8 +182,9 @@ HALSTEAD_DERIVE(FunctionOperator, FunctionDecl)
 
 	std::string getDebugName() const override
 	{
-		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned long)pMyData);
-		return Derive::getDebugName() + " (" + std::move(name) + ")";
+		std::ostringstream ss;
+		ss << Derive::getDebugName() << " (" << pMyData->getNameAsString() << " @ " << pMyData << ")";
+		return ss.str();
 	}
 
 	// Two operators are considered to be the same if and only if they are the same decl.

@@ -10,8 +10,9 @@ HALSTEAD_DERIVE(ValueDeclOperand, NamedDecl)
 
 	std::string getDebugName() const override
 	{
-		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned long)pMyData);
-		return Derive::getDebugName() + " (" + std::move(name) + ")";
+		std::ostringstream ss;
+		ss << Derive::getDebugName() << " (" << pMyData->getNameAsString() << " @ " << pMyData << ")";
+		return ss.str();
 	}
 
 	// Two operands are considered to be the same if and only if their declaration matches.
@@ -28,8 +29,9 @@ HALSTEAD_DERIVE(LabelDeclOperand, LabelDecl)
 
 	std::string getDebugName() const override
 	{
-		std::string name = pMyData->getNameAsString() + " @ " + std::to_string((unsigned long)pMyData);
-		return Derive::getDebugName() + " (" + std::move(name) + ")";
+		std::ostringstream ss;
+		ss << Derive::getDebugName() << " (" << pMyData->getNameAsString() << " @ " << pMyData << ")";
+		return ss.str();
 	}
 
 	// Two operands are considered to be the same if and only if their declaration matches.
