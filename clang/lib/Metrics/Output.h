@@ -165,55 +165,55 @@ namespace clang
 			//! Returns a const ForwardIterator to the beginning of the internal function metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, FunctionMetrics>.
 			//! The order of iteration is undefined, but all elements are guaranteed to be iterated over until function_end() is reached.
-			function_iterator function_begin() { return myFunctionMetrics.begin(); }
+			function_iterator function_begin() const { return myFunctionMetrics.begin(); }
 
 			//! Returns a const ForwardIterator to the end of the internal function metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, FunctionMetrics>.
-			function_iterator function_end() { return myFunctionMetrics.end(); }
+			function_iterator function_end() const { return myFunctionMetrics.end(); }
 
 			//! Returns a const ForwardIterator to the beginning of the internal class metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, ClassMetrics>.
 			//! The order of iteration is undefined, but all elements are guaranteed to be iterated over until class_end() is reached.
-			class_iterator class_begin() { return myClassMetrics.begin(); }
+			class_iterator class_begin() const { return myClassMetrics.begin(); }
 
 			//! Returns a const ForwardIterator to the end of the internal class metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, ClassMetrics>.
-			class_iterator class_end() { return myClassMetrics.end(); }
+			class_iterator class_end() const { return myClassMetrics.end(); }
 
 			//! Returns a const ForwardIterator to the beginning of the internal enum metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, EnumMetrics>.
 			//! The order of iteration is undefined, but all elements are guaranteed to be iterated over until enum_end() is reached.
-			enum_iterator enum_begin() { return myEnumMetrics.begin(); }
+			enum_iterator enum_begin() const { return myEnumMetrics.begin(); }
 
 			//! Returns a const ForwardIterator to the end of the internal enum metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, EnumMetrics>.
-			enum_iterator enum_end() { return myEnumMetrics.end(); }
+			enum_iterator enum_end() const { return myEnumMetrics.end(); }
 
 			//! Returns a const ForwardIterator to the beginning of the internal namespace metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, NamespaceMetrics>.
 			//! The order of iteration is undefined, but all elements are guaranteed to be iterated over until namespace_end() is reached.
-			namespace_iterator namespace_begin() { return myNamespaceMetrics.begin(); }
+			namespace_iterator namespace_begin() const { return myNamespaceMetrics.begin(); }
 
 			//! Returns a const ForwardIterator to the end of the internal namespace metrics structure.
 			//! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, NamespaceMetrics>.
-			namespace_iterator namespace_end() { return myNamespaceMetrics.end(); }
+			namespace_iterator namespace_end() const { return myNamespaceMetrics.end(); }
 
 			//! Returns a const ForwardIterator to the beginning of the internal file metrics structure.
 			//! The iterator's value_tpye is std::pair<std::string, FileMetrics>.
 			//! The order of iteration is undefined, but all elements are guaranteed to be iterated over until file_end() is reached.
-			file_iterator file_begin() { return myFileMetrics.begin(); }
+			file_iterator file_begin() const { return myFileMetrics.begin(); }
 
 			//! Returns a const ForwardIterator to the end of the internal file metrics structure.
 			//! The iterator's value_tpye is std::pair<std::string, FileMetrics>.
-			file_iterator file_end() { return myFileMetrics.end(); }
+			file_iterator file_end() const { return myFileMetrics.end(); }
 
 
 			//! Iterator wrappers for use in range based for loops.
-			ItHelper<function_iterator> functions() { return ItHelper<function_iterator>(function_begin(), function_end()); }
-			ItHelper<class_iterator> classes() { return ItHelper<class_iterator>(class_begin(), class_end()); }
-			ItHelper<enum_iterator> enums() { return ItHelper<enum_iterator>(enum_begin(), enum_end()); }
-			ItHelper<namespace_iterator> namespaces() { return ItHelper<namespace_iterator>(namespace_begin(), namespace_end()); }
-			ItHelper<file_iterator> files() { return ItHelper<file_iterator>(file_begin(), file_end()); }
+			ItHelper<function_iterator> functions() const { return ItHelper<function_iterator>(function_begin(), function_end()); }
+			ItHelper<class_iterator> classes() const { return ItHelper<class_iterator>(class_begin(), class_end()); }
+			ItHelper<enum_iterator> enums() const { return ItHelper<enum_iterator>(enum_begin(), enum_end()); }
+			ItHelper<namespace_iterator> namespaces() const { return ItHelper<namespace_iterator>(namespace_begin(), namespace_end()); }
+			ItHelper<file_iterator> files() const { return ItHelper<file_iterator>(file_begin(), file_end()); }
 		};
 	}
 }
