@@ -1,7 +1,5 @@
 #include "CAM_Id.h"
 
-#include <clang/AST/AST.h>
-#include <clang/AST/Mangle.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -11,7 +9,7 @@ using namespace clang;
 void metrics::CAMIDFactory::onSourceOperationEnd(const clang::CompilerInstance& inst)
 {
   pMyInstance = &inst;
-  pMyCtx = clang::ItaniumMangleContext::create(inst.getASTContext(), inst.getDiagnostics());
+  pMyCtx.reset(clang::ItaniumMangleContext::create(inst.getASTContext(), inst.getDiagnostics()));
 }
 
 std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* decl)

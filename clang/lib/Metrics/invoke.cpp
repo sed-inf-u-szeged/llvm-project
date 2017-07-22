@@ -11,7 +11,7 @@ using namespace tooling;
 using namespace metrics;
 
 
-bool metrics::invoke(Output& output, CompilationDatabase& compilations, const CommandLineArguments& sourcePathList, InvokeOptions options)
+bool metrics::invoke(Output& output, const CompilationDatabase& compilations, const CommandLineArguments& sourcePathList, InvokeOptions options)
 {
   // Create the tool.
   ClangTool tool(compilations, sourcePathList);

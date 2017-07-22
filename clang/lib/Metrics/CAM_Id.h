@@ -3,6 +3,9 @@
 #include "UID.h"
 #include "UIDFactory.h"
 
+#include <clang/AST/AST.h>
+#include <clang/AST/Mangle.h>
+
 #include <string>
 #include <functional>
 #include <assert.h>
@@ -11,7 +14,6 @@
 namespace clang
 {
   class DeclContext;
-  class MangleContext;
   class CompilerInstance;
 
   namespace metrics
@@ -57,7 +59,7 @@ namespace clang
 
     private:
       const clang::CompilerInstance* pMyInstance = nullptr;
-      clang::MangleContext* pMyCtx = nullptr;
+      std::unique_ptr<clang::MangleContext> pMyCtx;
     };
   }
 }

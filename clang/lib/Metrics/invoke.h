@@ -30,6 +30,6 @@ namespace clang
     //!  \param sourcePathList list of source files, can be queried by CommonOptionsParser::getSourcePathList() from command line arguments
     //!  \param options additional options specific to the metrics library
     //!  \return true on success, false on failure
-    bool invoke(Output& output, clang::tooling::CompilationDatabase& compilations, const clang::tooling::CommandLineArguments& sourcePathList, InvokeOptions options = InvokeOptions());
+    bool invoke(Output& output, const clang::tooling::CompilationDatabase& compilations, const clang::tooling::CommandLineArguments& sourcePathList, InvokeOptions options = InvokeOptions());
   }
 }
