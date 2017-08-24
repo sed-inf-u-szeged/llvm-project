@@ -97,7 +97,6 @@ bool ClangMetricsAction::NodeVisitor::VisitTemplateTypeParmDecl(const clang::Tem
   if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
-    ASTContext& con = rMyAction.getCompilerInstance().getASTContext();
 
     // Add typename or class keyword (operator).
     if (decl->wasDeclaredWithTypename())
