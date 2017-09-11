@@ -1,4 +1,4 @@
-#include "MetricsUtility.h"
+#include <clang/Metrics/MetricsUtility.h>
 
 #include <clang/AST/AST.h>
 

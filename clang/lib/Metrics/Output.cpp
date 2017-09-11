@@ -1,4 +1,4 @@
-#include "Output.h"
+#include <clang/Metrics/Output.h>
 
 #include <clang/AST/Mangle.h>
 #include <clang/AST/AST.h>

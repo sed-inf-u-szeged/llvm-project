@@ -1,5 +1,5 @@
-#include "invoke.h"
-#include "Output.h"
+#include <clang/Metrics/invoke.h>
+#include <clang/Metrics/Output.h>
 #include "ClangMetricsAction.h"
 
 #include <clang/Tooling/Tooling.h>

@@ -1,8 +1,9 @@
 #include "ClangMetricsAction.h"
 #include "Consumer.h"
 #include "LOCMeasure.h"
-#include "Output.h"
-#include "MetricsUtility.h"
+
+#include <clang/Metrics/Output.h>
+#include <clang/Metrics/MetricsUtility.h>
 
 
 // Use some clang namespace for simplicity

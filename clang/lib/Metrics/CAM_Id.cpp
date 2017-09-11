@@ -1,4 +1,4 @@
-#include "CAM_Id.h"
+#include <clang/Metrics/CAM_Id.h>
 
 #include <clang/Frontend/CompilerInstance.h>
 #include <llvm/Support/raw_ostream.h>
