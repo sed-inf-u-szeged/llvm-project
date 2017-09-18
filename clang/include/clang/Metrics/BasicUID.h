@@ -22,20 +22,20 @@ namespace clang
      *  ID for matching the same entities togather across different translation units by a specially generated
      *  "mangled" name.
      */
-    class CAM_Id final : public UID
+    class BasicUID final : public UID
     {
     public:
       //! Constructor.
       //!  \param mangledName the mangled name identifying the decl
-      CAM_Id(const std::string& mangledName) : myMangledName(mangledName)
+      BasicUID(const std::string& mangledName) : myMangledName(mangledName)
       {}
 
     private:
       bool equals(const UID& rhs) const override
       {
-        //assert(typeid(rhs) == typeid(CAM_Id) && "Invalid UID type!");
+        //assert(typeid(rhs) == typeid(BasicUID) && "Invalid UID type!");
 
-        return myMangledName == static_cast<const CAM_Id&>(rhs).myMangledName;
+        return myMangledName == static_cast<const BasicUID&>(rhs).myMangledName;
       }
 
       std::size_t hash() const override
@@ -51,7 +51,7 @@ namespace clang
     /*!
      *  Factory for creating CAM_Ids.
      */
-    class CAMIDFactory final : public UIDFactory
+    class BasicUIDFactory final : public UIDFactory
     {
     private:
       void onSourceOperationEnd(const clang::CompilerInstance& inst) override;

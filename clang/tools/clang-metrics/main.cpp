@@ -1,5 +1,5 @@
 // Includes
-#include <clang/Metrics/CAM_Id.h>
+#include <clang/Metrics/BasicUID.h>
 #include <clang/Metrics/Output.h>
 #include <clang/Metrics/invoke.h>
 
@@ -211,7 +211,7 @@ int main(int argc, const char** argv)
   // Parse command line arguments.
   clang::tooling::CommonOptionsParser parser(argc, argv, optCat);
 
-  CAMIDFactory factory;
+  BasicUIDFactory factory;
   Output output(factory);
 
   InvokeOptions options;

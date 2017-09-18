@@ -1,4 +1,4 @@
-#include <clang/Metrics/CAM_Id.h>
+#include <clang/Metrics/BasicUID.h>
 
 #include <clang/Frontend/CompilerInstance.h>
 #include <llvm/Support/raw_ostream.h>
@@ -6,13 +6,13 @@
 
 using namespace clang;
 
-void metrics::CAMIDFactory::onSourceOperationEnd(const clang::CompilerInstance& inst)
+void metrics::BasicUIDFactory::onSourceOperationEnd(const clang::CompilerInstance& inst)
 {
   pMyInstance = &inst;
   pMyCtx.reset(clang::ItaniumMangleContext::create(inst.getASTContext(), inst.getDiagnostics()));
 }
 
-std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* decl)
+std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl* decl)
 {
   std::string mangledName;
   llvm::raw_string_ostream ss(mangledName);
@@ -83,5 +83,5 @@ std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* d
     ss << "<missing id>";
   }
 
-  return std::unique_ptr<CAM_Id>(new CAM_Id(ss.str()));
+  return std::unique_ptr<BasicUID>(new BasicUID(ss.str()));
 }
