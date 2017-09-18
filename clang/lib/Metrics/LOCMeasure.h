@@ -145,6 +145,10 @@ namespace metrics
       // Returns the number of logical lines between from and to
       auto calculateLLOC = [this](unsigned from, unsigned to)
       {
+        //assert(from <= to && "From must not be greater than to.");
+        if (from > to)
+          std::swap(from, to);
+
         auto start = rMyCodeLines.lower_bound(from);
         auto end = rMyCodeLines.lower_bound(to);
         return std::distance(start, end) + 1;
@@ -153,7 +157,8 @@ namespace metrics
       // We store the locations to ignor in this vector, which we are going to order later.
       std::vector<LocInfo> order;
 
-      // LocInfo of the current object
+      // LocInfo of the current object.
+      // TODO: Maybe use getExpansionLineNumber() instead?
       LocInfo objInfo;
       objInfo.startingLine = rMySm.getSpellingLineNumber(object->getLocStart());
       objInfo.endingLine   = rMySm.getSpellingLineNumber(object->getLocEnd());

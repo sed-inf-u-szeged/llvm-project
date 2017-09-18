@@ -23,19 +23,19 @@ std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* d
   if (FunctionDecl::classof(decl))
   {
     // If this function is only visible from the current translation unit (eg.: static functions, functions in anonymous namespace)
-    if (static_cast<const FunctionDecl*>(decl)->getLinkageAndVisibility().getLinkage() != Linkage::ExternalLinkage)
+    if (cast<FunctionDecl>(decl)->getLinkageAndVisibility().getLinkage() != Linkage::ExternalLinkage)
     {
       // Put the filepath into the stream, prefixed by a "//" and break.
-      ss << "//" << sm.getFilename(static_cast<const FunctionDecl*>(decl)->getLocation());
+      ss << "//" << sm.getFilename(cast<FunctionDecl>(decl)->getLocation());
     }
 
     // Use the built-in mangler to get the mangled name for the function.
     if (CXXConstructorDecl::classof(decl))
-      pMyCtx->mangleCXXCtor(static_cast<const CXXConstructorDecl*>(decl), CXXCtorType::Ctor_Complete, ss);
+      pMyCtx->mangleCXXCtor(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete, ss);
     else if (CXXDestructorDecl::classof(decl))
-      pMyCtx->mangleCXXDtor(static_cast<const CXXDestructorDecl*>(decl), CXXDtorType::Dtor_Complete, ss);
+      pMyCtx->mangleCXXDtor(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete, ss);
     else
-      pMyCtx->mangleName(static_cast<const FunctionDecl*>(decl), ss);
+      pMyCtx->mangleName(cast<FunctionDecl>(decl), ss);
   }
   else if (const DeclContext* parent = clang::dyn_cast_or_null<DeclContext>(decl))
   {
@@ -46,7 +46,7 @@ std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* d
     {
       if (NamespaceDecl::classofKind(parent->getDeclKind()))
       {
-        const NamespaceDecl* ns = static_cast<const NamespaceDecl*>(parent);
+        const NamespaceDecl* ns = cast<NamespaceDecl>(parent);
         if (ns->isAnonymousNamespace())
         {
           // Put the filepath into the stream, prefixed by a "//" and break.
@@ -56,7 +56,7 @@ std::unique_ptr<metrics::UID> metrics::CAMIDFactory::create(const clang::Decl* d
       }
       else if (CXXRecordDecl::classofKind(parent->getDeclKind()))
       {
-        const CXXRecordDecl* cs = static_cast<const CXXRecordDecl*>(parent);
+        const CXXRecordDecl* cs = cast<CXXRecordDecl>(parent);
         if (cs->isAnonymousStructOrUnion())
         {
           // Put the filepath into the stream, prefixed by a "//".

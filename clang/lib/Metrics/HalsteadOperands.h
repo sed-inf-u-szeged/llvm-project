@@ -128,8 +128,13 @@ HALSTEAD_DERIVE(IntegerLiteralOperand, IntegerLiteral)
   // Two operands are considered to be the same if and only if their value matches.
   bool isSameAs(const OpBase& other) const override
   {
-    return OpBase::isSameAs(other) &&
-      pMyData->getValue() == static_cast<const IntegerLiteralOperand&>(other).pMyData->getValue();
+    if (!OpBase::isSameAs(other))
+      return false;
+
+    llvm::APInt v1 = pMyData->getValue();
+    llvm::APInt v2 = static_cast<const IntegerLiteralOperand&>(other).pMyData->getValue();
+
+    return v1.getBitWidth() == v2.getBitWidth() && v1 == v2;
   }
 };
 

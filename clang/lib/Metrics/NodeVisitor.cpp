@@ -13,7 +13,7 @@ namespace
 bool ClangMetricsAction::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* decl)
 {
   // Calculating Halstead for functions only
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -39,7 +39,7 @@ bool ClangMetricsAction::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* de
 
   // If this class has an "outer class" (so this is an inner class), we add this class to the list of
   // inner classes of the outer class
-  if (const CXXRecordDecl* outerClass = static_cast<const CXXRecordDecl*>(decl->getParent()))
+  if (const CXXRecordDecl* outerClass = dyn_cast_or_null<CXXRecordDecl>(decl->getParent()))
   {
     // If this is indeed a class and not a namespace, we add this class as an inner class
     if (CXXRecordDecl::classofKind(outerClass->getKind()))
@@ -47,7 +47,7 @@ bool ClangMetricsAction::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* de
   }
 
   // Check if this class was defined within a function
-  if (const FunctionDecl* function = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* function = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     rMyAction.myInsideClassesByFunctions[function].insert(decl);
   }
@@ -59,7 +59,7 @@ bool ClangMetricsAction::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* de
     // Store the class by its namespace, then break the loop (no need to look further)
     if (NamespaceDecl::classofKind(parent->getDeclKind()))
     {
-      rMyAction.myClassesByNamespaces[static_cast<const NamespaceDecl*>(parent)].insert(decl);
+      rMyAction.myClassesByNamespaces[cast<NamespaceDecl>(parent)].insert(decl);
       break;
     }
   }
@@ -94,7 +94,7 @@ bool ClangMetricsAction::NodeVisitor::VisitFunctionTemplateDecl(const clang::Fun
 
 bool ClangMetricsAction::NodeVisitor::VisitTemplateTypeParmDecl(const clang::TemplateTypeParmDecl* decl)
 {
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -129,7 +129,7 @@ bool ClangMetricsAction::NodeVisitor::VisitTemplateTypeParmDecl(const clang::Tem
 bool ClangMetricsAction::NodeVisitor::VisitNonTypeTemplateParmDecl(const clang::NonTypeTemplateParmDecl* decl)
 {
   // Only handle default arguments here. Everything else is done in VisitValueDecl().
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -151,7 +151,7 @@ bool ClangMetricsAction::NodeVisitor::VisitNonTypeTemplateParmDecl(const clang::
 
 bool ClangMetricsAction::NodeVisitor::VisitTemplateTemplateParmDecl(const clang::TemplateTemplateParmDecl* decl)
 {
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -210,13 +210,13 @@ bool ClangMetricsAction::NodeVisitor::VisitEnumDecl(const EnumDecl* decl)
     // Store the enum by its namespace, then break the loop (no need to look further)
     if (NamespaceDecl::classofKind(parent->getDeclKind()))
     {
-      rMyAction.myEnumsByNamespaces[static_cast<const NamespaceDecl*>(parent)].insert(decl);
+      rMyAction.myEnumsByNamespaces[cast<NamespaceDecl>(parent)].insert(decl);
       break;
     }
   }
 
   // Halstead stuff
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -253,7 +253,7 @@ bool ClangMetricsAction::NodeVisitor::VisitNamespaceDecl(const NamespaceDecl* de
   if (const DeclContext* p = decl->getParent())
   {
     if (NamespaceDecl::classofKind(p->getDeclKind()))
-      rMyAction.myInnerNamespacesByNamespaces[static_cast<const NamespaceDecl*>(p)].insert(decl);
+      rMyAction.myInnerNamespacesByNamespaces[cast<NamespaceDecl>(p)].insert(decl);
   }
 
   return true;
@@ -261,15 +261,14 @@ bool ClangMetricsAction::NodeVisitor::VisitNamespaceDecl(const NamespaceDecl* de
 
 bool ClangMetricsAction::NodeVisitor::VisitValueDecl(const ValueDecl* decl)
 {
-  // Get function in which this decl is declared in
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  // Get function in which this decl is declared in.
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
     // Handle CXXMethodDecl bug (?). For local classes, methods will be identified as ValueDecls at first.
-    if (CXXMethodDecl::classof(decl))
+    if (const CXXMethodDecl* mdecl = dyn_cast<CXXMethodDecl>(decl))
     {
-      const CXXMethodDecl* mdecl = static_cast<const CXXMethodDecl*>(decl);
       handleMethodRelatedHalsteadStuff(hs, mdecl);
       handleFunctionRelatedHalsteadStuff(hs, mdecl);
     }
@@ -301,7 +300,7 @@ bool ClangMetricsAction::NodeVisitor::VisitVarDecl(const clang::VarDecl* decl)
   if (decl->hasInit())
   {
     // Get function in which this decl is declared in
-    if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+    if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
     {
       // Handle initialization.
       switch (decl->getInitStyle())
@@ -318,7 +317,7 @@ bool ClangMetricsAction::NodeVisitor::VisitVarDecl(const clang::VarDecl* decl)
           if (CXXConstructExpr::classof(init))
           {
             // Get the parentheses range in the source code. Only add the Halstead operator if it's not invalid.
-            SourceRange range = static_cast<const CXXConstructExpr*>(init)->getParenOrBraceRange();
+            SourceRange range = cast<CXXConstructExpr>(init)->getParenOrBraceRange();
             if (range.isValid())
               rMyAction.myHalsteadByFunctions[f].add<Halstead::ParenthesesInitSyntaxOperator>();
           }
@@ -341,7 +340,7 @@ bool ClangMetricsAction::NodeVisitor::VisitVarDecl(const clang::VarDecl* decl)
   // FieldDecls (class members) cannot be static for local classes.
   if (decl->isStaticLocal())
   {
-    if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+    if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
       rMyAction.myHalsteadByFunctions[f].add<Halstead::StaticOperator>();
   }
 
@@ -354,7 +353,7 @@ bool ClangMetricsAction::NodeVisitor::VisitFieldDecl(const clang::FieldDecl* dec
   if (decl->hasInClassInitializer())
   {
     // Get function in which this decl is declared in
-    if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+    if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
     {
       // Handle initialization.
       switch (decl->getInClassInitStyle())
@@ -372,7 +371,7 @@ bool ClangMetricsAction::NodeVisitor::VisitFieldDecl(const clang::FieldDecl* dec
 
   if (decl->isMutable())
   {
-    if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+    if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
       rMyAction.myHalsteadByFunctions[f].add<Halstead::MutableOperator>();
   }
 
@@ -382,7 +381,7 @@ bool ClangMetricsAction::NodeVisitor::VisitFieldDecl(const clang::FieldDecl* dec
 bool ClangMetricsAction::NodeVisitor::VisitAccessSpecDecl(const clang::AccessSpecDecl* decl)
 {
   // Get function in which this decl is declared in
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
     rMyAction.myHalsteadByFunctions[f].add<Halstead::AccessSpecDeclOperator>(decl);
 
   return true;
@@ -391,7 +390,7 @@ bool ClangMetricsAction::NodeVisitor::VisitAccessSpecDecl(const clang::AccessSpe
 bool ClangMetricsAction::NodeVisitor::VisitUsingDecl(const clang::UsingDecl* decl)
 {
   // Get function in which this decl is declared in
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -409,7 +408,7 @@ bool ClangMetricsAction::NodeVisitor::VisitUsingDecl(const clang::UsingDecl* dec
 bool ClangMetricsAction::NodeVisitor::VisitUsingDirectiveDecl(const clang::UsingDirectiveDecl* decl)
 {
   // Get function in which this decl is declared in
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -429,7 +428,7 @@ bool ClangMetricsAction::NodeVisitor::VisitUsingDirectiveDecl(const clang::Using
 
 bool ClangMetricsAction::NodeVisitor::VisitNamespaceAliasDecl(const clang::NamespaceAliasDecl* decl)
 {
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -454,7 +453,7 @@ bool ClangMetricsAction::NodeVisitor::VisitTypeAliasDecl(const clang::TypeAliasD
   ASTContext& con = rMyAction.getCompilerInstance().getASTContext();
 
   // Get function in which this decl is declared in
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -479,7 +478,7 @@ bool ClangMetricsAction::NodeVisitor::VisitTypedefDecl(const clang::TypedefDecl*
   ASTContext& con = rMyAction.getCompilerInstance().getASTContext();
 
   // Get function in which this decl is declared in
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -498,7 +497,7 @@ bool ClangMetricsAction::NodeVisitor::VisitTypedefDecl(const clang::TypedefDecl*
 
 bool ClangMetricsAction::NodeVisitor::VisitFriendDecl(const clang::FriendDecl* decl)
 {
-  if (const FunctionDecl* f = static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()))
+  if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
   {
     HalsteadStorage& hs = rMyAction.myHalsteadByFunctions[f];
 
@@ -513,11 +512,11 @@ bool ClangMetricsAction::NodeVisitor::VisitFriendDecl(const clang::FriendDecl* d
     {
       if (CXXMethodDecl::classof(fd))
       {
-        handleMethodRelatedHalsteadStuff(hs, static_cast<const CXXMethodDecl*>(fd));
-        handleFunctionRelatedHalsteadStuff(hs, static_cast<const FunctionDecl*>(fd));
+        handleMethodRelatedHalsteadStuff(hs, cast<CXXMethodDecl>(fd));
+        handleFunctionRelatedHalsteadStuff(hs, cast<FunctionDecl>(fd));
       }
       else if (FunctionDecl::classof(fd))
-        handleFunctionRelatedHalsteadStuff(hs, static_cast<const FunctionDecl*>(fd));
+        handleFunctionRelatedHalsteadStuff(hs, cast<FunctionDecl>(fd));
     }
 
     // Note: Local classes cannot contain template friends, thus there is no need to handle that.
@@ -537,7 +536,8 @@ bool ClangMetricsAction::NodeVisitor::VisitDecl(const Decl* decl)
 
   // Handle semicolons.
   SourceLocation semiloc = findSemiAfterLocation(decl->getLocEnd(), rMyAction.getCompilerInstance().getASTContext(), false);
-  handleSemicolon(sm, static_cast<const FunctionDecl*>(decl->getParentFunctionOrMethod()), semiloc);
+  if (const FunctionDecl* fd = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
+    handleSemicolon(sm, fd, semiloc);
 
   return true;
 }
@@ -567,7 +567,7 @@ bool ClangMetricsAction::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
     {
       // Handle the qualified type of single decl.
       if (ValueDecl::classof(stmt->getSingleDecl()))
-        handleQualType(hs, static_cast<const ValueDecl*>(stmt->getSingleDecl())->getType(), true);
+        handleQualType(hs, cast<ValueDecl>(stmt->getSingleDecl())->getType(), true);
 
       return true;
     }
@@ -580,7 +580,7 @@ bool ClangMetricsAction::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
       return true;
 
     // Handle the qualified type of the first decl.
-    handleQualType(hs, static_cast<const ValueDecl*>(group[0])->getType(), true);
+    handleQualType(hs, cast<ValueDecl>(group[0])->getType(), true);
 
     // Only need to check for pointer and reference decl syntax.
     for (unsigned i = 1; i < group.size(); ++i)
@@ -768,19 +768,20 @@ bool ClangMetricsAction::NodeVisitor::VisitReturnStmt(const clang::ReturnStmt* s
 
 bool ClangMetricsAction::NodeVisitor::VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr* stmt)
 {
-  // Only increase Halstead operator count in case of 'alignof' and 'sizeof'
+  // Only increase Halstead operator count in case of 'alignof' and 'sizeof'.
   if (stmt->getKind() == UnaryExprOrTypeTrait::UETT_AlignOf || stmt->getKind() == UnaryExprOrTypeTrait::UETT_SizeOf)
   {
-    // Find parent function
-    const Decl* parent = getDeclFromStmt(*stmt);
-    if (const DeclContext* function = parent->getParentFunctionOrMethod())
+    // Find parent function.
+    if (const Decl* parent = getDeclFromStmt(*stmt))
     {
-      // Increase operator count of said function
-      const FunctionDecl* const f = static_cast<const FunctionDecl*>(function);
-      if (stmt->getKind() == UnaryExprOrTypeTrait::UETT_AlignOf)
-        rMyAction.myHalsteadByFunctions[f].add<Halstead::AlignofOperator>();
-      else
-        rMyAction.myHalsteadByFunctions[f].add<Halstead::SizeofOperator>();
+      if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(parent->getParentFunctionOrMethod()))
+      {
+        // Increase operator count of said function.
+        if (stmt->getKind() == UnaryExprOrTypeTrait::UETT_AlignOf)
+          rMyAction.myHalsteadByFunctions[f].add<Halstead::AlignofOperator>();
+        else
+          rMyAction.myHalsteadByFunctions[f].add<Halstead::SizeofOperator>();
+      }
     }
   }
 
@@ -821,7 +822,7 @@ bool ClangMetricsAction::NodeVisitor::VisitCallExpr(const clang::CallExpr* stmt)
     // For example for 'a == b', the '==' is an CXXOperatorCallExpr whereas in the case of 'a.operator==(b)' it is a method call.
     if (CXXOperatorCallExpr::classof(stmt))
     {  
-      UnifiedCXXOperator op = convertOverloadedOperator(static_cast<const CXXOperatorCallExpr*>(stmt));
+      UnifiedCXXOperator op = convertOverloadedOperator(cast<CXXOperatorCallExpr>(stmt));
       if (op.getType() == UnifiedCXXOperator::UNKNOWN)
       {
         // Handle as if this wasn't an operator call.
@@ -1071,7 +1072,7 @@ void ClangMetricsAction::NodeVisitor::increaseMcCCStmt(const Stmt* stmt)
     return;
 
   // Increase the McCC by one
-  ++rMyAction.myMcCCByFunctions[static_cast<const FunctionDecl*>(parent)];
+  ++rMyAction.myMcCCByFunctions[cast<FunctionDecl>(parent)];
 }
 
 const Decl* ClangMetricsAction::NodeVisitor::getDeclFromStmt(const Stmt& stmt)
@@ -1100,9 +1101,9 @@ const clang::FunctionDecl* ClangMetricsAction::NodeVisitor::getFunctionFromStmt(
   if (const Decl* d = getDeclFromStmt(stmt))
   {
     if (FunctionDecl::classofKind(d->getKind()))
-      return static_cast<const FunctionDecl*>(d);
+      return cast<FunctionDecl>(d);
 
-    if (const FunctionDecl* f = static_cast<const FunctionDecl*>(d->getParentFunctionOrMethod()))
+    if (const FunctionDecl* f = dyn_cast_or_null<FunctionDecl>(d->getParentFunctionOrMethod()))
       return f;
   }
 
@@ -1210,7 +1211,7 @@ void ClangMetricsAction::NodeVisitor::handleQualType(HalsteadStorage& hs, const 
 {
   // Desugar the type of any "internal" qualifiers (eg.: reference to const) where the qualifier
   // is hidden as part of the type itself.
-  if (const Type* type = qtype.getTypePtr())
+  if (const Type* type = qtype.getTypePtrOrNull())
   {
     // Short-circuit: If it's a decltype, the expression inside is already handled, we only
     // add a decltype keyword without expanding the type itself.
@@ -1223,7 +1224,7 @@ void ClangMetricsAction::NodeVisitor::handleQualType(HalsteadStorage& hs, const 
       if (type->isPointerType())
       {
         hs.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::POINTER);
-        handleQualType(hs, static_cast<const PointerType*>(type)->getPointeeType(), isOperator);
+        handleQualType(hs, cast<PointerType>(type->getCanonicalTypeInternal())->getPointeeType(), isOperator);
       }
       else if (type->isReferenceType())
       {
@@ -1232,18 +1233,18 @@ void ClangMetricsAction::NodeVisitor::handleQualType(HalsteadStorage& hs, const 
         else if (type->isRValueReferenceType())
           hs.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::RV_REF);
 
-        handleQualType(hs, static_cast<const ReferenceType*>(type)->getPointeeTypeAsWritten(), isOperator);
+        handleQualType(hs, cast<ReferenceType>(type->getCanonicalTypeInternal())->getPointeeTypeAsWritten(), isOperator);
       }
       else if (type->isMemberPointerType())
       {
         hs.add<Halstead::ScopeResolutionOperator>();
         hs.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::POINTER);
 
-        handleQualType(hs, static_cast<const MemberPointerType*>(type)->getPointeeType(), isOperator);
+        handleQualType(hs, cast<MemberPointerType>(type->getCanonicalTypeInternal())->getPointeeType(), isOperator);
       }
       else if (AutoType::classof(type))
       {
-        AutoTypeKeyword word = static_cast<const AutoType*>(type)->getKeyword();
+        AutoTypeKeyword word = cast<AutoType>(type)->getKeyword();
         switch (word)
         {
         case clang::AutoTypeKeyword::Auto:
@@ -1283,7 +1284,7 @@ void ClangMetricsAction::NodeVisitor::handleCallArgs(HalsteadStorage& hs, const 
     // We're only interested in DeclRefExprs.
     if (DeclRefExpr::classof(sub))
     {
-      const ValueDecl* argDecl = static_cast<const DeclRefExpr*>(sub)->getDecl();
+      const ValueDecl* argDecl = cast<DeclRefExpr>(sub)->getDecl();
 
       // Every ValueDecl is already added by VisitDeclRefExpr() except FunctionDecls, because in this case
       // they are considered operands - we add them here manually.
@@ -1429,9 +1430,9 @@ void ClangMetricsAction::NodeVisitor::handleFunctionRelatedHalsteadStuff(Halstea
   hs.add<Halstead::ValueDeclOperand>(decl);
 
   // Check for alternative function declaration (trailing return).
-  if (decl->getType()->isFunctionProtoType())
+  if (const FunctionProtoType* fpt = decl->getType()->getAs<FunctionProtoType>())
   {
-    if (static_cast<const FunctionProtoType*>(decl->getType().getTypePtr())->hasTrailingReturn())
+    if (fpt->hasTrailingReturn())
     {
       hs.add<Halstead::AutoOperator>();
       hs.add<Halstead::TrailingReturnArrowOperator>();
@@ -1482,10 +1483,10 @@ void ClangMetricsAction::NodeVisitor::handleMethodRelatedHalsteadStuff(HalsteadS
   }
 
   // Handle 'explicit' keyword for constructors and cast operators.
-  if (CXXConstructorDecl::classof(decl) && static_cast<const CXXConstructorDecl*>(decl)->isExplicitSpecified())
+  if (CXXConstructorDecl::classof(decl) && cast<CXXConstructorDecl>(decl)->isExplicitSpecified())
     hs.add<Halstead::ExplicitOperator>();
 
-  if (CXXConversionDecl::classof(decl) && static_cast<const CXXConversionDecl*>(decl)->isExplicitSpecified())
+  if (CXXConversionDecl::classof(decl) && cast<CXXConversionDecl>(decl)->isExplicitSpecified())
     hs.add<Halstead::ExplicitOperator>();
 
   // Handle virtualness.
