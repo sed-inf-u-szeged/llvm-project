@@ -1,5 +1,5 @@
 add_clang_library(clangMetrics
-  CAM_Id.cpp
+  BasicUID.cpp
   ClangMetricsAction.cpp
   invoke.cpp
   NodeVisitor.cpp
