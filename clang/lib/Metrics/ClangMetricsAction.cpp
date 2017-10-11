@@ -13,14 +13,8 @@ using namespace metrics::detail;
 
 std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInstance& ci, StringRef file)
 {
+  rMyOutput.getFactory().onSourceOperationBegin(ci, file);
   return std::unique_ptr<ASTConsumer>(new Consumer(*this));
-}
-
-bool metrics::detail::ClangMetricsAction::BeginSourceFileAction(clang::CompilerInstance& ci, clang::StringRef filename)
-{
-  rMyOutput.getFactory().onSourceOperationBegin(ci, filename);
-
-  return true;
 }
 
 void ClangMetricsAction::EndSourceFileAction()

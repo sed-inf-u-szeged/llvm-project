@@ -61,9 +61,6 @@ namespace clang
         // Called by the libtooling library. Should not be called manually.
         std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance& ci, clang::StringRef file) override;
 
-        // Called by the libtooling library. Should not be called manually.
-        bool BeginSourceFileAction(clang::CompilerInstance& ci, clang::StringRef filename) override;
-
         // Called by the libtooling library at the end of source operations. Should not be called manually.
         void EndSourceFileAction() override;
 
