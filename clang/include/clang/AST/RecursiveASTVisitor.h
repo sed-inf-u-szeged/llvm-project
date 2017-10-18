@@ -608,10 +608,10 @@ bool RecursiveASTVisitor<Derived>::PostVisitStmt(Stmt *S) {
   case Stmt::CLASS##Class:                                                     \
     {                                                                          \
       auto ILE = static_cast<CLASS *>(S);                                      \
-      if (auto Syn = ILE->isSemanticForm() ? ILE->getSyntacticForm() : ILE)    \
-        TRY_TO(WalkUpFrom##CLASS(Syn));                                        \
       if (auto Sem = ILE->isSemanticForm() ? ILE : ILE->getSemanticForm())     \
         TRY_TO(WalkUpFrom##CLASS(Sem));                                        \
+      if (auto Syn = ILE->isSemanticForm() ? ILE->getSyntacticForm() : ILE)    \
+        TRY_TO(WalkUpFrom##CLASS(Syn));                                        \
       break;                                                                   \
     }
 #include "clang/AST/StmtNodes.inc"
