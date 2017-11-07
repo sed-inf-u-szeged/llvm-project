@@ -64,11 +64,12 @@ namespace clang
         // Called by the libtooling library at the end of source operations. Should not be called manually.
         void EndSourceFileAction() override;
 
-      private:
-        // Inner class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
+      public:
+        // Class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
         // See the Clang documentation for more info.
         class NodeVisitor;
 
+      private:
         // ASTConsumer for the NodeVisitor.
         // See the Clang documentation for more info.
         class Consumer;

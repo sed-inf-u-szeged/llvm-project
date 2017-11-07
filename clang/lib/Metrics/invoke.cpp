@@ -1,6 +1,7 @@
 #include <clang/Metrics/invoke.h>
 #include <clang/Metrics/Output.h>
 #include "ClangMetricsAction.h"
+#include "NodeVisitor.h"
 
 #include <clang/Tooling/Tooling.h>
 
@@ -38,4 +39,19 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   // Create factory and invoke main program.
   std::unique_ptr<Factory> factory(new Factory(output, options));
   return !tool.run(factory.get());
+}
+
+void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<const clang::Decl*>& declarations, const std::vector<const clang::Stmt*> statements, InvokeOptions options)
+{
+  detail::ClangMetricsAction clangMetricsAction(output);
+  clangMetricsAction.debugPrintAfterVisit(options.enableDebugPrint);
+
+  detail::ClangMetricsAction::NodeVisitor visitor(clangMetricsAction);
+
+  for (auto decl : declarations)
+    visitor.VisitDecl(decl);
+
+  for (auto stmt : statements)
+    visitor.VisitStmt(stmt);
+
 }

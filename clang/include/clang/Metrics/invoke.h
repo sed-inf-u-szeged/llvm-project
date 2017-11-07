@@ -6,6 +6,10 @@
 
 namespace clang
 {
+  class ASTContext;
+  class Decl;
+  class Stmt;
+
   namespace tooling
   {
     class CompilationDatabase;
@@ -31,5 +35,7 @@ namespace clang
     //!  \param options additional options specific to the metrics library
     //!  \return true on success, false on failure
     bool invoke(Output& output, const clang::tooling::CompilationDatabase& compilations, const clang::tooling::CommandLineArguments& sourcePathList, InvokeOptions options = InvokeOptions());
+
+    void invoke(Output& output, clang::ASTContext& context, const std::vector<const clang::Decl*>& declarations, const std::vector<const clang::Stmt*> statements, InvokeOptions options = InvokeOptions());
   }
 }
