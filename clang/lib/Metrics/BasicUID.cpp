@@ -1,15 +1,22 @@
 #include <clang/Metrics/BasicUID.h>
 
-#include <clang/Frontend/CompilerInstance.h>
+#include <clang/AST/ASTContext.h>
 #include <llvm/Support/raw_ostream.h>
 
 
 using namespace clang;
 
-void metrics::BasicUIDFactory::onSourceOperationEnd(const clang::CompilerInstance& inst)
+metrics::BasicUIDFactory::BasicUIDFactory()
+  : pMyASTCtx (nullptr)
+  , diagnosticsEngine(IntrusiveRefCntPtr<clang::DiagnosticIDs>(new DiagnosticIDs()),
+                      &*IntrusiveRefCntPtr<clang::DiagnosticOptions>(new DiagnosticOptions()))
 {
-  pMyInstance = &inst;
-  pMyCtx.reset(clang::ItaniumMangleContext::create(inst.getASTContext(), inst.getDiagnostics()));
+}
+
+void metrics::BasicUIDFactory::onSourceOperationEnd(clang::ASTContext& context)
+{
+  pMyASTCtx = &context;
+  pMyMangleCtx.reset(clang::ItaniumMangleContext::create(context, diagnosticsEngine));
 }
 
 std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl* decl)
@@ -17,7 +24,7 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
   std::string mangledName;
   llvm::raw_string_ostream ss(mangledName);
 
-  SourceManager& sm = pMyInstance->getSourceManager();
+  const SourceManager& sm = pMyASTCtx->getSourceManager();
 
   // Functions can have their name mangled easily by the built-in mangler
   if (FunctionDecl::classof(decl))
@@ -31,11 +38,11 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
 
     // Use the built-in mangler to get the mangled name for the function.
     if (CXXConstructorDecl::classof(decl))
-      pMyCtx->mangleCXXCtor(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete, ss);
+      pMyMangleCtx->mangleCXXCtor(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete, ss);
     else if (CXXDestructorDecl::classof(decl))
-      pMyCtx->mangleCXXDtor(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete, ss);
+      pMyMangleCtx->mangleCXXDtor(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete, ss);
     else
-      pMyCtx->mangleName(cast<FunctionDecl>(decl), ss);
+      pMyMangleCtx->mangleName(cast<FunctionDecl>(decl), ss);
   }
   else if (const DeclContext* parent = clang::dyn_cast_or_null<DeclContext>(decl))
   {

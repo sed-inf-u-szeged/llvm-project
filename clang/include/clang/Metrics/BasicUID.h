@@ -14,7 +14,7 @@
 namespace clang
 {
   class DeclContext;
-  class CompilerInstance;
+  class ASTContext;
 
   namespace metrics
   {
@@ -53,13 +53,16 @@ namespace clang
      */
     class BasicUIDFactory final : public UIDFactory
     {
+    public:
+      BasicUIDFactory();
     private:
-      void onSourceOperationEnd(const clang::CompilerInstance& inst) override;
+      void onSourceOperationEnd(clang::ASTContext& context) override;
       std::unique_ptr<UID> create(const clang::Decl* decl) override;
 
     private:
-      const clang::CompilerInstance* pMyInstance = nullptr;
-      std::unique_ptr<clang::MangleContext> pMyCtx;
+      clang::ASTContext* pMyASTCtx = nullptr;
+      std::unique_ptr<clang::MangleContext> pMyMangleCtx;
+      DiagnosticsEngine diagnosticsEngine;
     };
   }
 }

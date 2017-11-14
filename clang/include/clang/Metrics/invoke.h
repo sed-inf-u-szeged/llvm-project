@@ -36,6 +36,12 @@ namespace clang
     //!  \return true on success, false on failure
     bool invoke(Output& output, const clang::tooling::CompilationDatabase& compilations, const clang::tooling::CommandLineArguments& sourcePathList, InvokeOptions options = InvokeOptions());
 
-    void invoke(Output& output, clang::ASTContext& context, const std::vector<const clang::Decl*>& declarations, const std::vector<const clang::Stmt*> statements, InvokeOptions options = InvokeOptions());
+    //! Invokes metrics calculation with the given arguments.
+    //!  \param output reference to the Output object storing the results
+    //!  \param context ASTContext containing all the AST related information
+    //!  \param declarations list of declaration nodes needed to be traversed
+    //!  \param statements list of statement nodes needed to be traversed
+    //!  \param options additional options specific to the metrics library
+    void invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*> statements, InvokeOptions options = InvokeOptions());
   }
 }

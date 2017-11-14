@@ -10,7 +10,7 @@
 namespace clang
 {
   class Decl;
-  class CompilerInstance;
+  class ASTContext;
 
   namespace metrics
   {
@@ -28,13 +28,13 @@ namespace clang
       virtual std::unique_ptr<UID> create(const clang::Decl*) = 0;
 
       //! Callback for custom code to be run at the beginning of each source operation.
-      //!  \param ci reference to the clang::CompilerInstance
+      //!  \param context reference to the clang::ASTContext
       //!  \param filename the name of the source file
-      virtual void onSourceOperationBegin(const clang::CompilerInstance& ci, llvm::StringRef filename) {}
+      virtual void onSourceOperationBegin(clang::ASTContext& context, llvm::StringRef filename) {}
 
       //! Callback for custom code to be run at the end of each source operation.
-      //!  \param ci reference to the clang::CompilerInstance
-      virtual void onSourceOperationEnd(const clang::CompilerInstance& ci) {}
+      //!  \param context reference to the clang::ASTContext
+      virtual void onSourceOperationEnd(clang::ASTContext& context) {}
     };
   }
 }

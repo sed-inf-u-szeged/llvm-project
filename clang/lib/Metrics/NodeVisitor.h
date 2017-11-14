@@ -1,14 +1,15 @@
 #pragma once
 
-#include "ClangMetricsAction.h"
+#include "ClangMetrics.h"
+#include <clang/AST/RecursiveASTVisitor.h>
 
 
 // Inner class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
 // See the Clang documentation for more info.
-class clang::metrics::detail::ClangMetricsAction::NodeVisitor final : public clang::RecursiveASTVisitor<NodeVisitor>
+class clang::metrics::detail::ClangMetrics::NodeVisitor final : public clang::RecursiveASTVisitor<NodeVisitor>
 {
 public:
-  NodeVisitor(ClangMetricsAction& action) : rMyAction(action)
+  NodeVisitor(ClangMetrics& action) : rMyMetrics(action)
   {}
 
   // Callbacks triggered when visiting a specific AST node.
@@ -101,7 +102,7 @@ private:
   static UnifiedCXXOperator convertOverloadedOperator(const clang::CXXOperatorCallExpr* stmt);
 
   // Handle semicolons.
-  void handleSemicolon(clang::SourceManager& sm, const clang::FunctionDecl* f, clang::SourceLocation semiloc);
+  void handleSemicolon(const clang::SourceManager& sm, const clang::FunctionDecl* f, clang::SourceLocation semiloc);
 
   // Needed because local classes are not visited correctly (ValueDecl issue).
   void handleFunctionRelatedHalsteadStuff(HalsteadStorage& hs, const clang::FunctionDecl* decl);
@@ -113,8 +114,8 @@ private:
   {
     using namespace clang;
 
-    ASTContext& con = rMyAction.getCompilerInstance().getASTContext();
-    ASTContext::DynTypedNodeList parents = con.getParents(*node);
+    ASTContext* con = rMyMetrics.getASTContext();
+    ASTContext::DynTypedNodeList parents = con->getParents(*node);
 
     auto it = parents.begin();
     if (it == parents.end())
@@ -132,5 +133,5 @@ private:
   }
 
 private:
-  ClangMetricsAction& rMyAction;
+  ClangMetrics& rMyMetrics;
 };

@@ -18,7 +18,7 @@ namespace clang
   {
     namespace detail
     {
-      class ClangMetricsAction;
+      class ClangMetrics;
     }
 
     /*!
@@ -127,7 +127,7 @@ namespace clang
 
     private:
       // Adds new results to the stored ones. Called by ClangMetricsAction at the end of each source operation.
-      friend class detail::ClangMetricsAction;
+      friend class detail::ClangMetrics;
       void mergeFunctionMetrics(const clang::FunctionDecl* decl, const FunctionMetrics& m);
       void mergeClassMetrics(const clang::CXXRecordDecl* decl, const ClassMetrics& m, unsigned tlocT_raw, unsigned tlocL_raw, unsigned locT_raw, unsigned locL_raw);
       void mergeEnumMetrics(const clang::EnumDecl* decl, const EnumMetrics& m);

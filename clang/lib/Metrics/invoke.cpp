@@ -41,17 +41,18 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   return !tool.run(factory.get());
 }
 
-void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<const clang::Decl*>& declarations, const std::vector<const clang::Stmt*> statements, InvokeOptions options)
+void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*> statements, InvokeOptions options)
 {
-  detail::ClangMetricsAction clangMetricsAction(output);
-  clangMetricsAction.debugPrintAfterVisit(options.enableDebugPrint);
+  detail::ClangMetrics clangMetrics(output, context);
+  clangMetrics.debugPrintAfterVisit(options.enableDebugPrint);
 
-  detail::ClangMetricsAction::NodeVisitor visitor(clangMetricsAction);
+  detail::ClangMetrics::NodeVisitor visitor(clangMetrics);
 
   for (auto decl : declarations)
-    visitor.VisitDecl(decl);
+    visitor.TraverseDecl(decl);
 
   for (auto stmt : statements)
-    visitor.VisitStmt(stmt);
+    visitor.TraverseStmt(stmt);
 
+  clangMetrics.aggregateMetrics();
 }
