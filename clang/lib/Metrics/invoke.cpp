@@ -41,7 +41,7 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   return !tool.run(factory.get());
 }
 
-void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*> statements, InvokeOptions options)
+void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options)
 {
   detail::ClangMetrics clangMetrics(output, context);
   clangMetrics.debugPrintAfterVisit(options.enableDebugPrint);

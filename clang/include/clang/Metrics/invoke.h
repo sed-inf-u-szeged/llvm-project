@@ -42,6 +42,6 @@ namespace clang
     //!  \param declarations list of declaration nodes needed to be traversed
     //!  \param statements list of statement nodes needed to be traversed
     //!  \param options additional options specific to the metrics library
-    void invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*> statements, InvokeOptions options = InvokeOptions());
+    void invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options = InvokeOptions());
   }
 }
