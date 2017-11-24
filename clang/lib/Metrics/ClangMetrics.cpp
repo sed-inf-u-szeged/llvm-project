@@ -165,7 +165,7 @@ void ClangMetrics::aggregateMetrics()
   // Debug print Halstead metrics if requested.
   if (myDebugPrintAfterVisit)
   {
-    std::cout << " --- HALSTEAD RESULTS BEGIN --- \n\n  Filename: " << currentFile.str() << "\n\n\n";
+    std::cout << " --- HALSTEAD RESULTS BEGIN --- \n\n  Filename: " << currentFile << "\n\n\n";
     for (auto& hs : myHalsteadByFunctions)
     {
       std::cout << "  Function: " << hs.first->getNameAsString() << '\n';

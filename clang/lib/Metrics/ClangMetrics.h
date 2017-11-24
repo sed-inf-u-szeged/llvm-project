@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <set>
 #include <memory>
+#include <string>
 
 namespace clang {
 
@@ -85,7 +86,7 @@ class ClangMetrics {
     Output& rMyOutput;
 
     // The current file.
-    StringRef currentFile;
+    std::string currentFile;
 
   private:
     // The AST context.
