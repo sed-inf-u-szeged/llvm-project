@@ -96,10 +96,10 @@ class ClangMetrics {
     bool myDebugPrintAfterVisit = false;
 
     // Contains all the classes in the program.
-    std::unordered_set<const clang::CXXRecordDecl*> myClasses;
+    std::unordered_set<const clang::Decl*> myClasses;
 
     // Contains all the methods and functions in the program.
-    std::unordered_set<const clang::FunctionDecl*> myFunctions;
+    std::unordered_set<const clang::DeclContext*> myFunctions;
 
     // Contains all the enums (including C++ 11 strongly typed enums) in the program.
     std::unordered_set<const clang::EnumDecl*> myEnums;
@@ -109,29 +109,33 @@ class ClangMetrics {
 
     // Maps classes/structs/unions defined within functions to the functions.
     // If a function has no "inside" classes/structs/unions, it won't be found in this map.
-    std::unordered_map<const clang::FunctionDecl*, std::unordered_set<const clang::CXXRecordDecl*>> myInsideClassesByFunctions;
+    std::unordered_map<const clang::DeclContext*, std::unordered_set<const clang::Decl*>> myInsideClassesByFunctions;
 
     // Maps McCC to functions. If a function has an McCC of 1, it won't be found in this map.
     // Note that the values stored here are one less than the final McCC.
-    std::unordered_map<const clang::FunctionDecl*, unsigned> myMcCCByFunctions;
+    std::unordered_map<const clang::DeclContext*, unsigned> myMcCCByFunctions;
 
     // Halstead operators (first) and operands (second) by functions.
-    std::unordered_map<const clang::FunctionDecl*, HalsteadStorage> myHalsteadByFunctions;
+    std::unordered_map<const clang::DeclContext*, HalsteadStorage> myHalsteadByFunctions;
 
     // Maps inner classes to their "outside" class.
     // If the class has no inner classes, it won't be found in this map.
-    std::unordered_map<const clang::CXXRecordDecl*, std::unordered_set<const clang::CXXRecordDecl*>> myInnerClassesByClasses;
+    std::unordered_map<const clang::Decl*, std::unordered_set<const clang::Decl*>> myInnerClassesByClasses;
+
+    // Maps ObjC Interfaces by Implementation.
+    std::unordered_map<const clang::ObjCContainerDecl*, const clang::ObjCContainerDecl*> myObjCInterfaceByImplementations;
 
     // Maps methods to their class.
     // If the class has no methods, it won't be found in this map.
-    std::unordered_map<const clang::CXXRecordDecl*, std::unordered_set<const clang::CXXMethodDecl*>> myMethodsByClasses;
+    std::unordered_map<const clang::Decl*, std::unordered_set<const clang::Decl*>> myMethodsByClasses;
 
     // Maps namespaces inside another namespace to this "outside" namespace.
     // If the namespace has no inner namespaces, it won't be found in this map.
     std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::NamespaceDecl*>> myInnerNamespacesByNamespaces;
 
     // Maps classes/structs/unions to their namespace. If a class/struct/union is in the global namespace, it won't be found in this map.
-    std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::CXXRecordDecl*>> myClassesByNamespaces;
+
+    std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::Decl*>> myClassesByNamespaces;
 
     // Maps enums (including C++ 11 strongly typed enums) to their namespace. If an enum is in the global namespace, it won't be found in this map.
     std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::EnumDecl*>> myEnumsByNamespaces;

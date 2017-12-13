@@ -15,20 +15,34 @@ void ClangMetrics::aggregateMetrics()
 
   // Helper for LOC calculation.
   LOCMeasure me(pMyASTContext->getSourceManager(), myCodeLines);
-
+    
   // Function metrics
   for (auto decl : myFunctions)
   {
-    auto loc  = me.calculate(decl, LOCMeasure::ignore(myInsideClassesByFunctions));
-    auto tloc = me.calculate(decl);
 
     FunctionMetrics m;
-    m.name  = decl->getNameAsString();
-    m.LOC   = loc.total;
-    m.TLOC  = tloc.total;
-    m.LLOC  = loc.logical;
-    m.TLLOC = tloc.logical;
+    
+    LOCMeasure::LOC loc;
+    LOCMeasure::LOC tloc;
+    if (ObjCMethodDecl::classofKind(decl->getDeclKind()))
+    {
+      loc = me.calculate(cast<ObjCMethodDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
+      tloc = me.calculate(cast<ObjCMethodDecl>(decl));
+      m.name = cast<ObjCMethodDecl>(decl)->getNameAsString();
+    
+    }
+    else if (FunctionDecl::classofKind(decl->getDeclKind()))
+    {
+      loc = me.calculate(cast<FunctionDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
+      tloc = me.calculate(cast<FunctionDecl>(decl));
+      m.name = cast<FunctionDecl>(decl)->getNameAsString();
+    }
 
+    m.LOC = loc.total;
+    m.TLOC = tloc.total;
+    m.LLOC = loc.logical;
+    m.TLLOC = tloc.logical;
+      
     auto it = myMcCCByFunctions.find(decl);
     if (it != myMcCCByFunctions.end())
       m.McCC = it->second + 1;
@@ -41,26 +55,91 @@ void ClangMetrics::aggregateMetrics()
     m.HD_Operators = hs.getDistinctOperatorCount();
     m.HD_Operands  = hs.getDistinctOperandCount();
 
-    rMyOutput.mergeFunctionMetrics(decl, m);
+    if (ObjCMethodDecl::classofKind(decl->getDeclKind()))
+    {
+      rMyOutput.mergeFunctionMetrics(cast<ObjCMethodDecl>(decl), m);
+    }
+    else if (FunctionDecl::classofKind(decl->getDeclKind()))
+    {
+      rMyOutput.mergeFunctionMetrics(cast<FunctionDecl>(decl), m);
+    }
+      
   }
 
   // Class metrics
   for (auto decl : myClasses)
   {
-    auto tloc = me.calculate(decl,
-      LOCMeasure::ignore(myMethodsByClasses),
-      LOCMeasure::merge(myMethodsByClasses, false));
-    auto loc = me.calculate(decl,
-      LOCMeasure::ignore(myInnerClassesByClasses),
-      LOCMeasure::ignore(myMethodsByClasses),
-      LOCMeasure::merge(myMethodsByClasses, false));
+      
+    LOCMeasure::LOC loc;
+    LOCMeasure::LOC tloc;
+   
+  if (dyn_cast_or_null<ObjCContainerDecl>(decl))
+    {
+      tloc = me.calculate(decl);
+      loc = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
+    
+    // Interfaces and Categories have Implementation lines of code to include
+    LOCMeasure::LOC imploc;
+    if (const ObjCInterfaceDecl* id = dyn_cast_or_null<ObjCInterfaceDecl>(decl))
+    {
+      if (const ObjCImplementationDecl* imp = id->getImplementation())
+      {
+        imploc = me.calculate(imp);
+        tloc.logical += imploc.logical;
+        tloc.total += imploc.total;
+        loc.logical += imploc.logical;
+        loc.total += imploc.total;
+      }
+    }
+    else if (const ObjCCategoryDecl* id = dyn_cast_or_null<ObjCCategoryDecl>(decl))
+    {
+      if (!id->IsClassExtension())
+      {
+        if (const ObjCCategoryImplDecl* imp = id->getImplementation())
+        {
+          imploc = me.calculate(imp);
+          tloc.logical += imploc.logical;
+          tloc.total += imploc.total;
+          loc.logical += imploc.logical;
+          loc.total += imploc.total;
+        }
+      }
+    }
+    }
+    else
+    {
+      tloc = me.calculate(decl,
+        LOCMeasure::ignore(myMethodsByClasses),
+        LOCMeasure::merge(myMethodsByClasses, false));
+      loc = me.calculate(decl,
+        LOCMeasure::ignore(myInnerClassesByClasses),
+        LOCMeasure::ignore(myMethodsByClasses),
+        LOCMeasure::merge(myMethodsByClasses, false));
+    }
 
     // "Raw" metrics without methods
     auto tloc_raw = me.calculate(decl);
-    auto loc_raw  = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
+    auto loc_raw = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
 
     ClassMetrics m;
-    m.name  = decl->getNameAsString();
+    if (CXXRecordDecl::classofKind(decl->getKind()))
+      m.name = cast<CXXRecordDecl>(decl)->getNameAsString();
+    else if (ObjCInterfaceDecl::classofKind(decl->getKind()))
+      m.name = cast<ObjCInterfaceDecl>(decl)->getNameAsString();
+    else if (ObjCProtocolDecl::classofKind(decl->getKind()))
+      m.name = cast<ObjCProtocolDecl>(decl)->getNameAsString();
+  else if (const ObjCCategoryDecl* cd = dyn_cast_or_null<ObjCCategoryDecl>(decl))
+  {
+      if (cd->IsClassExtension())
+      {
+        if (const ObjCInterfaceDecl* intf = cd->getClassInterface())
+          m.name = "Ext:" + intf->getNameAsString();
+      }
+      else
+        m.name = cd->getNameAsString();
+  }
+      
+
     m.LOC   = loc.total;
     m.TLOC  = tloc.total;
     m.LLOC  = loc.logical;
@@ -75,7 +154,7 @@ void ClangMetrics::aggregateMetrics()
       else
         m.NLM = 0;
     }
-
+      
     rMyOutput.mergeClassMetrics(decl, m, tloc_raw.total, tloc_raw.logical, loc_raw.total, loc_raw.logical);
   }
 
@@ -115,10 +194,13 @@ void ClangMetrics::aggregateMetrics()
 
         // Iterate over the classes and count the interfaces
         m.NIN = 0;
-        for (const CXXRecordDecl* d : it->second)
+        for (const Decl* d : it->second)
         {
-          if (isInterface(d))
-            ++m.NIN;
+      if (CXXRecordDecl::classof(decl))
+      {
+        if (isInterface(cast<CXXRecordDecl>(d)))
+          ++m.NIN;
+      }
         }
       }
       else
@@ -145,7 +227,7 @@ void ClangMetrics::aggregateMetrics()
   {
     struct
     {
-      const SourceManager* sm;
+      SourceManager* sm;
 
       SourceLocation getLocStart() const { return sm->getLocForStartOfFile(sm->getMainFileID()); }
       SourceLocation getLocEnd() const { return sm->getLocForEndOfFile(sm->getMainFileID()); }
@@ -161,14 +243,21 @@ void ClangMetrics::aggregateMetrics()
 
     rMyOutput.mergeFileMetrics(currentFile, m);
   }
-
+    
   // Debug print Halstead metrics if requested.
   if (myDebugPrintAfterVisit)
   {
     std::cout << " --- HALSTEAD RESULTS BEGIN --- \n\n  Filename: " << currentFile << "\n\n\n";
     for (auto& hs : myHalsteadByFunctions)
     {
-      std::cout << "  Function: " << hs.first->getNameAsString() << '\n';
+    if (ObjCMethodDecl::classofKind(hs.first->getDeclKind()))
+    {
+      std::cout << "  Function: " << cast<ObjCMethodDecl>(hs.first)->getNameAsString() << '\n';
+    }
+    else if (FunctionDecl::classofKind(hs.first->getDeclKind()))
+    {
+      std::cout << "  Function: " << cast<FunctionDecl>(hs.first)->getNameAsString() << '\n';
+    }
       std::cout << "  "; hs.second.dbgPrintOperators();
       std::cout << "  "; hs.second.dbgPrintOperands();
       std::cout << "\n  \tOperators: " << hs.second.getOperatorCount() << "\tD: " << hs.second.getDistinctOperatorCount();

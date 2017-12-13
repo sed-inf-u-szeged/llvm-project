@@ -13,6 +13,10 @@ HALSTEAD_AUTODERIVE(DefaultCaseOperator);
 HALSTEAD_AUTODERIVE(BreakOperator);
 HALSTEAD_AUTODERIVE(ContinueOperator);
 HALSTEAD_AUTODERIVE(TryOperator);
+HALSTEAD_AUTODERIVE(BridgedCastOperator); 
+HALSTEAD_AUTODERIVE(ObjCBoxedOperator);
+HALSTEAD_AUTODERIVE(ObjCSynchronizeOperator);
+HALSTEAD_AUTODERIVE(FinallyOperator);
 HALSTEAD_AUTODERIVE(CatchOperator);
 HALSTEAD_AUTODERIVE(ThrowOperator);
 HALSTEAD_AUTODERIVE(ReturnOperator);
@@ -33,6 +37,7 @@ HALSTEAD_AUTODERIVE(ConstCastOperator);
 HALSTEAD_AUTODERIVE(ReinterpretCastOperator);
 HALSTEAD_AUTODERIVE(DynamicCastOperator);
 HALSTEAD_AUTODERIVE(CStyleCastOperator);
+HALSTEAD_AUTODERIVE(EncodeExprOperator);
 HALSTEAD_AUTODERIVE(FunctionalCastOperator);
 HALSTEAD_AUTODERIVE(ThisExprOperator);
 HALSTEAD_AUTODERIVE(TemplateOperator);
@@ -55,6 +60,9 @@ HALSTEAD_AUTODERIVE(MutableOperator);
 HALSTEAD_AUTODERIVE(StaticOperator);
 HALSTEAD_AUTODERIVE(VirtualOperator);
 HALSTEAD_AUTODERIVE(PureVirtualDeclarationOperator);
+HALSTEAD_AUTODERIVE(ObjCInstanceMethodOperator);
+HALSTEAD_AUTODERIVE(ObjCClassMethodOperator);
+HALSTEAD_AUTODERIVE(ObjCMessageOperator);
 
 
 // More specific operator definitions

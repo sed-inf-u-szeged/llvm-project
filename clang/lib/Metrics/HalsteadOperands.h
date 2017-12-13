@@ -1,6 +1,7 @@
 
 // Generalized operand definitions
 HALSTEAD_AUTODERIVE(NullptrLiteralOperand);
+HALSTEAD_AUTODERIVE(MessageClassReceiverOperand);
 
 
 // More specific operator definitions
@@ -21,6 +22,25 @@ HALSTEAD_DERIVE(ValueDeclOperand, NamedDecl)
     return OpBase::isSameAs(other) &&
       pMyData == static_cast<const ValueDeclOperand&>(other).pMyData;
   }
+};
+
+HALSTEAD_DERIVE(MessageSelectorOperand, ObjCMessageExpr)
+{
+    using Derive::Derive;
+    
+    std::string getDebugName() const override
+    {
+        std::ostringstream ss;
+        ss << Derive::getDebugName() << " (" << pMyData->getSelector().getAsString() << ")";
+        return ss.str();
+    }
+    
+    // Two operands are considered to be the same if and only if their declaration matches.
+    bool isSameAs(const OpBase& other) const override
+    {
+        return OpBase::isSameAs(other) &&
+        pMyData == static_cast<const MessageSelectorOperand&>(other).pMyData;
+    }
 };
 
 HALSTEAD_DERIVE(LabelDeclOperand, LabelDecl)
@@ -113,6 +133,23 @@ HALSTEAD_DERIVE(BoolLiteralOperand, CXXBoolLiteralExpr)
   {
     return OpBase::isSameAs(other) &&
       pMyData->getValue() == static_cast<const BoolLiteralOperand&>(other).pMyData->getValue();
+  }
+};
+
+HALSTEAD_DERIVE(ObjCBoolLiteralOperand, ObjCBoolLiteralExpr)
+{
+  using Derive::Derive;
+
+  std::string getDebugName() const override
+  {
+    return Derive::getDebugName() + (pMyData->getValue() ? " (true)" : " (false)");
+  }
+
+  // Two operators are considered to be the same if and only if their value matches.
+  bool isSameAs(const OpBase& other) const override
+  {
+    return OpBase::isSameAs(other) &&
+      pMyData->getValue() == static_cast<const ObjCBoolLiteralOperand&>(other).pMyData->getValue();
   }
 };
 

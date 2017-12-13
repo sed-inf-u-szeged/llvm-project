@@ -110,13 +110,13 @@ namespace metrics
       class MergeOption_helper
       {
       private:
-        MergeOption_helper(const Map& subMap, bool isIgnore, bool rangeOnly) : mySubMap(subMap), myIsIgnore(isIgnore), myIsRangeOnly(rangeOnly)
-        {}
-
         friend MergeOption_helper LOCMeasure::merge<Map>(const Map&, bool);
         friend MergeOption_helper LOCMeasure::ignore<Map>(const Map&, bool);
 
       public:
+          // TODO Constructor should be private but public for Xcode to work
+          MergeOption_helper(const Map& subMap, bool isIgnore, bool rangeOnly) : mySubMap(subMap), myIsIgnore(isIgnore), myIsRangeOnly(rangeOnly)
+          {}
         const Map& getMap() const { return mySubMap; }
 
         // True exactly if this is an ignore option, false if it is a merge option.
@@ -164,8 +164,14 @@ namespace metrics
       objInfo.endingLine   = rMySm.getSpellingLineNumber(object->getLocEnd());
 
       // Calculate the LOC/LLOC of the object in question (we are going to subtract the ignored ranges from this later)
-      unsigned loc  = objInfo.endingLine - objInfo.startingLine + 1;
-      unsigned lloc = calculateLLOC(objInfo.startingLine, objInfo.endingLine);
+        unsigned loc;
+        if(objInfo.startingLine > objInfo.endingLine)
+            loc = objInfo.startingLine - objInfo.endingLine + 1;
+        else
+            loc = objInfo.endingLine - objInfo.startingLine + 1;
+        
+        unsigned lloc = calculateLLOC(objInfo.startingLine, objInfo.endingLine);
+
 
       // Use the helper to put every element needed to be ignored into the vector
       mergeLOC_helper(object, order, options...);
@@ -289,6 +295,7 @@ namespace metrics
       for (auto d : it->second)
       {
         LocInfo info;
+
         info.startingLine = rMySm.getSpellingLineNumber(d->getLocStart());
         info.endingLine   = rMySm.getSpellingLineNumber(d->getLocEnd());
         if (option.isRangeOnly())

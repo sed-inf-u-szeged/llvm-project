@@ -6,14 +6,13 @@
 
 using namespace clang::metrics;
 
-void Output::mergeFunctionMetrics(const clang::FunctionDecl* decl, const FunctionMetrics& m)
+void Output::mergeFunctionMetrics(const clang::Decl* decl, const FunctionMetrics& m)
 {
   FunctionMetrics& om = myFunctionMetrics[rMyFactory.create(decl)];
-
   om = m;
 }
 
-void Output::mergeClassMetrics(const clang::CXXRecordDecl* decl, const ClassMetrics& m, unsigned tlocT_raw, unsigned tlocL_raw, unsigned locT_raw, unsigned locL_raw)
+void Output::mergeClassMetrics(const clang::Decl* decl, const ClassMetrics& m, unsigned tlocT_raw, unsigned tlocL_raw, unsigned locT_raw, unsigned locL_raw)
 {
   ClassMetrics& om = myClassMetrics[rMyFactory.create(decl)];
 
@@ -34,6 +33,14 @@ void Output::mergeClassMetrics(const clang::CXXRecordDecl* decl, const ClassMetr
     om.LLOC  -= locL_raw;
     om.TLLOC -= tlocL_raw;
   }
+    
+    if(clang::ObjCInterfaceDecl::classofKind(decl->getKind()))
+    {
+        if(m.NLM > om.NLM)
+        {
+            om.NLM = m.NLM;
+        }
+    }
 
   // Merge the size metrics to the ones already here
   om.LOC   += m.LOC;

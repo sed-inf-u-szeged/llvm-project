@@ -1,7 +1,5 @@
 #include "ClangMetricsAction.h"
 #include "Consumer.h"
-
-
 #include <clang/Metrics/Output.h>
 #include <clang/Metrics/MetricsUtility.h>
 
