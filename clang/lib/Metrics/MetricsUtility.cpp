@@ -67,6 +67,7 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
       return false;
   }
 
-  // If everything went OK, the class is indeed an interface
-  return true;
+  // If everything went OK, check for the existence of the virtual destructor.
+  const CXXDestructorDecl* dd = decl->getDestructor();
+  return dd && dd->isVirtual();
 }
