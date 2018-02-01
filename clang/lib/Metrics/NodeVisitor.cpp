@@ -31,10 +31,6 @@ bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* decl)
       hs.add<Halstead::ValueDeclOperand>(decl);
   }
 
-  // Skip the rest if this is only a forward declaration
-  if (!decl->hasDefinition())
-    return true;
-
   // Add the current node
   rMyMetrics.myClasses.insert(decl);
 
@@ -73,11 +69,8 @@ bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* decl)
 
 bool ClangMetrics::NodeVisitor::VisitFunctionDecl(const FunctionDecl* decl)
 {
-  if (decl->isDefined())
-  {
-    // Add the current node
-    rMyMetrics.myFunctions.insert(decl);
-  }
+  // Add the current node
+  rMyMetrics.myFunctions.insert(decl);
 
   HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[decl];
   handleFunctionRelatedHalsteadStuff(hs, decl);
@@ -87,11 +80,8 @@ bool ClangMetrics::NodeVisitor::VisitFunctionDecl(const FunctionDecl* decl)
 
 bool ClangMetrics::NodeVisitor::VisitFunctionTemplateDecl(const clang::FunctionTemplateDecl* decl)
 {
-  if (decl->isThisDeclarationADefinition())
-  {
-    // Add template keyword (operator)
-    rMyMetrics.myHalsteadByFunctions[decl->getTemplatedDecl()].add<Halstead::TemplateOperator>();
-  }
+  // Add template keyword (operator)
+  rMyMetrics.myHalsteadByFunctions[decl->getTemplatedDecl()].add<Halstead::TemplateOperator>();
 
   return true;
 }
