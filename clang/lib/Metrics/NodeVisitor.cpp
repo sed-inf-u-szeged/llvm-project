@@ -1493,12 +1493,13 @@ void ClangMetrics::NodeVisitor::handleCallArgs(HalsteadStorage& hs, const Stmt* 
     // We're only interested in DeclRefExprs.
     if (DeclRefExpr::classof(sub))
     {
-      const ValueDecl* argDecl = cast<DeclRefExpr>(sub)->getDecl();
-
-      // Every ValueDecl is already added by VisitDeclRefExpr() except FunctionDecls, because in this case
-      // they are considered operands - we add them here manually.
-      if (FunctionDecl::classof(argDecl))
-        hs.add<Halstead::ValueDeclOperand>(argDecl);
+      if (const ValueDecl* argDecl = cast<DeclRefExpr>(sub)->getDecl())
+      {
+        // Every ValueDecl is already added by VisitDeclRefExpr() except FunctionDecls, because in this case
+        // they are considered operands - we add them here manually.
+        if (FunctionDecl::classof(argDecl))
+          hs.add<Halstead::ValueDeclOperand>(argDecl);
+      }
     }
 
     // Recursion into the children of the child.
