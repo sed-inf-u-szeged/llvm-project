@@ -1479,9 +1479,17 @@ void ClangMetrics::NodeVisitor::handleQualType(HalsteadStorage& hs, const clang:
 
 void ClangMetrics::NodeVisitor::handleCallArgs(HalsteadStorage& hs, const Stmt* arg)
 {
+  // The value of arg can be null, handle this.
+  if (!arg)
+    return;
+
   // Iterate over the children of the statement in the AST.
   for (const Stmt* sub : arg->children())
   {
+    // It is possible that sub here is null.
+    if (!sub)
+      continue;
+
     // We're only interested in DeclRefExprs.
     if (DeclRefExpr::classof(sub))
     {
