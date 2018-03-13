@@ -114,7 +114,7 @@ private:
   void handleCallArgs(HalsteadStorage& hs, const clang::Stmt* arg);
 
   // Helper function for converting Clang's overloaded operator type to UnifiedCXXOperator.
-  static UnifiedCXXOperator convertOverloadedOperator(const clang::CXXOperatorCallExpr* stmt);
+  static UnifiedCXXOperator convertOverloadedOperator(const clang::CXXOperatorCallExpr& stmt);
 
   // Handle semicolons.
   void handleSemicolon(const clang::SourceManager& sm, const clang::DeclContext* f, clang::SourceLocation semiloc);

@@ -310,6 +310,6 @@ namespace metrics
       // Continue filling the vector from the other maps
       mergeLOC_helper(object, order, options...);
     }
-}
+  }
 }
 }

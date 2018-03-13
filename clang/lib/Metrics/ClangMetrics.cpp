@@ -19,28 +19,26 @@ void ClangMetrics::aggregateMetrics()
   // Function metrics
   for (auto decl : myFunctions)
   {
-
     FunctionMetrics m;
     
     LOCMeasure::LOC loc;
     LOCMeasure::LOC tloc;
     if (ObjCMethodDecl::classofKind(decl->getDeclKind()))
     {
-      loc = me.calculate(cast<ObjCMethodDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
-      tloc = me.calculate(cast<ObjCMethodDecl>(decl));
+      loc    = me.calculate(cast<ObjCMethodDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
+      tloc   = me.calculate(cast<ObjCMethodDecl>(decl));
       m.name = cast<ObjCMethodDecl>(decl)->getNameAsString();
-    
     }
     else if (FunctionDecl::classofKind(decl->getDeclKind()))
     {
-      loc = me.calculate(cast<FunctionDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
-      tloc = me.calculate(cast<FunctionDecl>(decl));
+      loc    = me.calculate(cast<FunctionDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
+      tloc   = me.calculate(cast<FunctionDecl>(decl));
       m.name = cast<FunctionDecl>(decl)->getNameAsString();
     }
 
-    m.LOC = loc.total;
-    m.TLOC = tloc.total;
-    m.LLOC = loc.logical;
+    m.LOC   = loc.total;
+    m.TLOC  = tloc.total;
+    m.LLOC  = loc.logical;
     m.TLLOC = tloc.logical;
       
     auto it = myMcCCByFunctions.find(decl);
@@ -62,49 +60,49 @@ void ClangMetrics::aggregateMetrics()
     else if (FunctionDecl::classofKind(decl->getDeclKind()))
     {
       rMyOutput.mergeFunctionMetrics(cast<FunctionDecl>(decl), m);
-    }
-      
+    }  
   }
 
   // Class metrics
   for (auto decl : myClasses)
-  {
-      
+  {   
     LOCMeasure::LOC loc;
     LOCMeasure::LOC tloc;
    
-  if (dyn_cast_or_null<ObjCContainerDecl>(decl))
+    if (dyn_cast_or_null<ObjCContainerDecl>(decl))
     {
       tloc = me.calculate(decl);
       loc = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
     
-    // Interfaces and Categories have Implementation lines of code to include
-    LOCMeasure::LOC imploc;
-    if (const ObjCInterfaceDecl* id = dyn_cast_or_null<ObjCInterfaceDecl>(decl))
-    {
-      if (const ObjCImplementationDecl* imp = id->getImplementation())
+      // Interfaces and Categories have Implementation lines of code to include
+      LOCMeasure::LOC imploc;
+      if (const ObjCInterfaceDecl* id = dyn_cast_or_null<ObjCInterfaceDecl>(decl))
       {
-        imploc = me.calculate(imp);
-        tloc.logical += imploc.logical;
-        tloc.total += imploc.total;
-        loc.logical += imploc.logical;
-        loc.total += imploc.total;
-      }
-    }
-    else if (const ObjCCategoryDecl* id = dyn_cast_or_null<ObjCCategoryDecl>(decl))
-    {
-      if (!id->IsClassExtension())
-      {
-        if (const ObjCCategoryImplDecl* imp = id->getImplementation())
+        if (const ObjCImplementationDecl* imp = id->getImplementation())
         {
           imploc = me.calculate(imp);
+
           tloc.logical += imploc.logical;
-          tloc.total += imploc.total;
-          loc.logical += imploc.logical;
-          loc.total += imploc.total;
+          tloc.total   += imploc.total;
+          loc.logical  += imploc.logical;
+          loc.total    += imploc.total;
         }
       }
-    }
+      else if (const ObjCCategoryDecl* id = dyn_cast_or_null<ObjCCategoryDecl>(decl))
+      {
+        if (!id->IsClassExtension())
+        {
+          if (const ObjCCategoryImplDecl* imp = id->getImplementation())
+          {
+            imploc = me.calculate(imp);
+
+            tloc.logical += imploc.logical;
+            tloc.total   += imploc.total;
+            loc.logical  += imploc.logical;
+            loc.total    += imploc.total;
+          }
+        }
+      }
     }
     else
     {
@@ -128,8 +126,8 @@ void ClangMetrics::aggregateMetrics()
       m.name = cast<ObjCInterfaceDecl>(decl)->getNameAsString();
     else if (ObjCProtocolDecl::classofKind(decl->getKind()))
       m.name = cast<ObjCProtocolDecl>(decl)->getNameAsString();
-  else if (const ObjCCategoryDecl* cd = dyn_cast_or_null<ObjCCategoryDecl>(decl))
-  {
+    else if (const ObjCCategoryDecl* cd = dyn_cast_or_null<ObjCCategoryDecl>(decl))
+    {
       if (cd->IsClassExtension())
       {
         if (const ObjCInterfaceDecl* intf = cd->getClassInterface())
@@ -137,8 +135,7 @@ void ClangMetrics::aggregateMetrics()
       }
       else
         m.name = cd->getNameAsString();
-  }
-      
+    }    
 
     m.LOC   = loc.total;
     m.TLOC  = tloc.total;
@@ -196,11 +193,11 @@ void ClangMetrics::aggregateMetrics()
         m.NIN = 0;
         for (const Decl* d : it->second)
         {
-      if (CXXRecordDecl::classof(decl))
-      {
-        if (isInterface(cast<CXXRecordDecl>(d)))
-          ++m.NIN;
-      }
+          if (CXXRecordDecl::classof(decl))
+          {
+            if (isInterface(cast<CXXRecordDecl>(d)))
+              ++m.NIN;
+          }
         }
       }
       else
