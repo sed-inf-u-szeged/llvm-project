@@ -147,7 +147,7 @@ class ClangMetrics {
     std::set<std::pair<unsigned, unsigned>, Comparator> mySemicolonLocations;
 
     // McCC for the whole file. (starting from 1 becaus of McCC "plus 1" definition)
-    int myFileMcCC = 1;
+    unsigned myFileMcCC = 1;
 
 };
 
