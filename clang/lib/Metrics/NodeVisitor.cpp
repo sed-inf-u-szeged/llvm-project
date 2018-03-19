@@ -819,7 +819,7 @@ bool ClangMetrics::NodeVisitor::VisitLabelStmt(const clang::LabelStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    if (const Decl* d = stmt->getDecl())
+    if (const LabelDecl* d = stmt->getDecl())
       rMyMetrics.myHalsteadByFunctions[f].add<Halstead::LabelDeclOperand>(d);
   }
 
