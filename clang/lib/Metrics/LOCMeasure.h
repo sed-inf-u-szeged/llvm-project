@@ -25,6 +25,7 @@ namespace metrics
         bool isIgnored;
         unsigned startingLine;
         unsigned endingLine;
+        FileID file;
       };
 
     public:
@@ -42,7 +43,7 @@ namespace metrics
       //! Constructor.
       //!  \param sm reference to the current clang::SourceManager
       //!  \param codeLines set of line numbers where logical code is written (needed for LLOC)
-      LOCMeasure(const clang::SourceManager& sm, const std::set<unsigned>& codeLines) : rMySm(sm), rMyCodeLines(codeLines)
+      LOCMeasure(const clang::SourceManager& sm, const std::set<std::pair<clang::FileID, unsigned>>& codeLines) : rMySm(sm), rMyCodeLines(codeLines)
       {}
 
       //! Calculates the LOC/LLOC of an AST object of type T (eg.: clang::CXXRecordDecl).
@@ -95,7 +96,7 @@ namespace metrics
       const clang::SourceManager& rMySm;
 
       // Contains the line numbers where logical code (aka neither comment, nor empty line) is written.
-      const std::set<unsigned>& rMyCodeLines;
+      const std::set<std::pair<clang::FileID, unsigned>>& rMyCodeLines;
 
 
     private:
@@ -141,42 +142,42 @@ namespace metrics
     {
       using namespace clang;
 
-      // Helper lambda
-      // Returns the number of logical lines between from and to
-      auto calculateLLOC = [this](unsigned from, unsigned to)
+      // Helper lambda.
+      // Returns the number of logical lines between from and to.
+      auto calculateLLOC = [this](FileID file, unsigned from, unsigned to)
       {
         //assert(from <= to && "From must not be greater than to.");
         if (from > to)
           std::swap(from, to);
 
-        auto start = rMyCodeLines.lower_bound(from);
-        auto end = rMyCodeLines.lower_bound(to);
+        auto start = rMyCodeLines.lower_bound({ file, from });
+        auto end = rMyCodeLines.lower_bound({ file, to });
         return std::distance(start, end) + 1;
       };
 
-      // We store the locations to ignor in this vector, which we are going to order later.
+      // We store the locations to ignore in this vector, which we are going to order later.
       std::vector<LocInfo> order;
 
       // LocInfo of the current object.
-      // TODO: Maybe use getExpansionLineNumber() instead?
       LocInfo objInfo;
-      objInfo.startingLine = rMySm.getSpellingLineNumber(object->getLocStart());
-      objInfo.endingLine   = rMySm.getSpellingLineNumber(object->getLocEnd());
+      objInfo.startingLine = rMySm.getExpansionLineNumber(object->getLocStart());
+      objInfo.endingLine   = rMySm.getExpansionLineNumber(object->getLocEnd());
+      objInfo.file         = rMySm.getFileID(object->getLocStart());
 
-      // Calculate the LOC/LLOC of the object in question (we are going to subtract the ignored ranges from this later)
-        unsigned loc;
-        if(objInfo.startingLine > objInfo.endingLine)
-            loc = objInfo.startingLine - objInfo.endingLine + 1;
-        else
-            loc = objInfo.endingLine - objInfo.startingLine + 1;
+      // Calculate the LOC/LLOC of the object in question (we are going to subtract the ignored ranges from this later).
+      unsigned loc;
+      if(objInfo.startingLine > objInfo.endingLine)
+          loc = objInfo.startingLine - objInfo.endingLine + 1;
+      else
+          loc = objInfo.endingLine - objInfo.startingLine + 1;
         
-        unsigned lloc = calculateLLOC(objInfo.startingLine, objInfo.endingLine);
+      unsigned lloc = calculateLLOC(objInfo.file, objInfo.startingLine, objInfo.endingLine);
 
 
-      // Use the helper to put every element needed to be ignored into the vector
+      // Use the helper to put every element needed to be ignored into the vector.
       mergeLOC_helper(object, order, options...);
 
-      // If order is empty, it means that there aren't any nodes to ignore/merge - we can simply return the LOC already
+      // If order is empty, it means that there aren't any nodes to ignore/merge - we can simply return the LOC already.
       if (order.empty())
         return { loc, lloc };
 
@@ -197,52 +198,52 @@ namespace metrics
       {
         auto result = orderedSet.insert(info);
     
-        // If there was already an element like this, we remove it
+        // If there was already an element like this, we remove it.
         if (!result.second)
           orderedSet.erase(result.first);
       }
 
-      // If order is empty, it means that there aren't any nodes to ignore/merge - we can simply return the LOC already
+      // If order is empty, it means that there aren't any nodes to ignore/merge - we can simply return the LOC already.
       if (orderedSet.empty())
         return { loc, lloc };
 
       // TODO: This would be unnecessary! Get rid of the vector and use the set everywhere!
-      // Convert back to vector
+      // Convert back to vector.
       order = std::vector<LocInfo>(orderedSet.begin(), orderedSet.end());
 
-      // Correct LOC for the first element (first element always exists at this point)
+      // Correct LOC for the first element (first element always exists at this point).
       if (order[0].isIgnored)
       {
         // Ignore this range
         loc  -= order[0].endingLine - order[0].startingLine + 1;
-        lloc -= calculateLLOC(order[0].startingLine, order[0].endingLine);
+        lloc -= calculateLLOC(order[0].file, order[0].startingLine, order[0].endingLine);
 
-        // If the first element starts on the same line as the node in question, we must correct the LOC by adding one
+        // If the first element starts on the same line as the node in question, we must correct the LOC by adding one.
         if (objInfo.startingLine == order[0].startingLine) ++loc, ++lloc;
 
-        // If the last element (which can be the same as the first) ends on the same line as the object, we also need to add one
+        // If the last element (which can be the same as the first) ends on the same line as the object, we also need to add one.
         if (objInfo.endingLine == order.back().endingLine) ++loc, ++lloc;
       }
       else
       {
-        // Merge this range
+        // Merge this range.
         loc  += order[0].endingLine - order[0].startingLine + 1;
-        lloc += calculateLLOC(order[0].startingLine, order[0].endingLine);
+        lloc += calculateLLOC(order[0].file, order[0].startingLine, order[0].endingLine);
 
-        // If the first element starts on the same line as the node in question, we must correct the LOC by subtracting one
+        // If the first element starts on the same line as the node in question, we must correct the LOC by subtracting one.
         if (objInfo.startingLine == order[0].startingLine) --loc, --lloc;
 
-        // If the last element (which can be the same as the first) ends on the same line as the object, we also need to subtract one
+        // If the last element (which can be the same as the first) ends on the same line as the object, we also need to subtract one.
         if (objInfo.endingLine == order.back().endingLine) --loc, --lloc;
       }
 
-      // Iterate over the vector
+      // Iterate over the vector.
       for (size_t i = 1; i < order.size(); ++i)
       {
-        // Look for entries that start on the same line where the previous one ends
+        // Look for entries that start on the same line where the previous one ends.
         if (order[i].startingLine == order[i - 1].endingLine)
         {
-          // Correct the LOC (otherwise this line would be counted twice)
+          // Correct the LOC (otherwise this line would be counted twice).
           if (order[i].isIgnored)
           {
             ++loc;
@@ -255,9 +256,9 @@ namespace metrics
           }
         }
 
-        // Ignore or merge to LOC
+        // Ignore or merge to LOC.
         const unsigned correctionLOC  = order[i].endingLine - order[i].startingLine + 1;
-        const unsigned correctionLLOC = calculateLLOC(order[i].startingLine, order[i].endingLine);
+        const unsigned correctionLLOC = calculateLLOC(order[i].file, order[i].startingLine, order[i].endingLine);
         if (order[i].isIgnored)
         {
           loc  -= correctionLOC;
@@ -277,37 +278,39 @@ namespace metrics
     template<class T, class MergeOption, class... MergeOptions>
     void LOCMeasure::mergeLOC_helper(const T* object, std::vector<LocInfo>& order, const MergeOption& option, const MergeOptions&... options)
     {
-      // Lookup the object in the map
+      // Lookup the object in the map.
       auto it = option.getMap().find(object);
 
-      // If it doesn't exist within the map, we continue with the other maps
+      // If it doesn't exist within the map, we continue with the other maps.
       if (it == option.getMap().end())
         return mergeLOC_helper(object, order, options...);
 
-      // Otherwise we can now reserve the required space in the vector
+      // Otherwise we can now reserve the required space in the vector.
       order.reserve(order.size() + it->second.size());
 
-      // Source range of the object
-      unsigned oStart = rMySm.getSpellingLineNumber(object->getLocStart());
-      unsigned oEnd   = rMySm.getSpellingLineNumber(object->getLocEnd());
+      // Source range of the object.
+      FileID   oFile  = rMySm.getFileID(object->getLocStart());
+      unsigned oStart = rMySm.getExpansionLineNumber(object->getLocStart());
+      unsigned oEnd   = rMySm.getExpansionLineNumber(object->getLocEnd());
 
-      // Insert the location of every node into the vector
+      // Insert the location of every node into the vector.
       for (auto d : it->second)
       {
         LocInfo info;
 
-        info.startingLine = rMySm.getSpellingLineNumber(d->getLocStart());
-        info.endingLine   = rMySm.getSpellingLineNumber(d->getLocEnd());
+        info.file         = rMySm.getFileID(d->getLocStart());
+        info.startingLine = rMySm.getExpansionLineNumber(d->getLocStart());
+        info.endingLine   = rMySm.getExpansionLineNumber(d->getLocEnd());
         if (option.isRangeOnly())
         {
-          if (info.startingLine < oStart || info.endingLine > oEnd)
+          if (info.file != oFile || info.startingLine < oStart || info.endingLine > oEnd)
             continue;
         }
         info.isIgnored = option.isIgnore();
         order.push_back(info);
       }
 
-      // Continue filling the vector from the other maps
+      // Continue filling the vector from the other maps.
       mergeLOC_helper(object, order, options...);
     }
   }

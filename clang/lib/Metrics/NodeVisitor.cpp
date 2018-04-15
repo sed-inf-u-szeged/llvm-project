@@ -628,9 +628,10 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
   // Add starting, actual and ending line numbers to set.
   // These are the only places where the decl is sure to contain code.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
-  rMyMetrics.myCodeLines.insert(sm.getSpellingLineNumber(decl->getLocStart()));
-  rMyMetrics.myCodeLines.insert(sm.getSpellingLineNumber(decl->getLocation()));
-  rMyMetrics.myCodeLines.insert(sm.getSpellingLineNumber(decl->getLocEnd()));
+  FileID file = sm.getFileID(decl->getLocation());
+  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(decl->getLocStart()));
+  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(decl->getLocation()));
+  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(decl->getLocEnd()));
 
   // Handle semicolons.
   SourceLocation semiloc = findSemiAfterLocation(decl->getLocEnd(), rMyMetrics.getASTContext(), false);
@@ -648,8 +649,9 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
   // Add starting and ending line numbers to set.
   // These are the only places where the statement is sure to contain code.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
-  rMyMetrics.myCodeLines.insert(sm.getSpellingLineNumber(stmt->getLocStart()));
-  rMyMetrics.myCodeLines.insert(sm.getSpellingLineNumber(stmt->getLocEnd()));
+  FileID file = sm.getFileID(stmt->getLocStart());
+  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(stmt->getLocStart()));
+  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(stmt->getLocEnd()));
 
   // Handle semicolons.
   SourceLocation semiloc = findSemiAfterLocation(stmt->getLocEnd(), rMyMetrics.getASTContext(), false);
@@ -1348,8 +1350,8 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
   // Helper lambda. Returns whether rhs is after lhs.
   auto isAfter = [&sm](SourceLocation lhs, SourceLocation rhs)
   {
-    const unsigned ll = sm.getSpellingLineNumber(lhs);
-    const unsigned rl = sm.getSpellingLineNumber(rhs);
+    const unsigned ll = sm.getExpansionLineNumber(lhs);
+    const unsigned rl = sm.getExpansionLineNumber(rhs);
 
     if (rl < ll)
       return false;
@@ -1357,15 +1359,15 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
     if (ll < rl)
       return true;
 
-    return sm.getSpellingColumnNumber(lhs) < sm.getSpellingColumnNumber(rhs);
+    return sm.getExpansionColumnNumber(lhs) < sm.getExpansionColumnNumber(rhs);
   };
 
   // Helper lambda. Returns the distance (number of characters) from lhs to rhs.
   // Works only if rhs is after lhs.
   auto distance = [&sm](SourceLocation lhs, SourceLocation rhs)
   {
-    const unsigned lines   = sm.getSpellingLineNumber(rhs)   - sm.getSpellingLineNumber(lhs);
-    const unsigned columns = sm.getSpellingColumnNumber(rhs) - sm.getSpellingColumnNumber(lhs);
+    const unsigned lines   = sm.getExpansionLineNumber(rhs)   - sm.getExpansionLineNumber(lhs);
+    const unsigned columns = sm.getExpansionColumnNumber(rhs) - sm.getExpansionColumnNumber(lhs);
 
     return lines + columns;
   };
@@ -1646,29 +1648,35 @@ void ClangMetrics::NodeVisitor::handleSemicolon(const SourceManager& sm, const D
   if (!f || semiloc.isInvalid())
     return;
   
-  unsigned line   = sm.getSpellingLineNumber(semiloc);
-  unsigned column = sm.getSpellingColumnNumber(semiloc);
+  unsigned line   = sm.getExpansionLineNumber(semiloc);
+  unsigned column = sm.getExpansionColumnNumber(semiloc);
 
   unsigned sl, sc;
   unsigned el, ec;
+
+  FileID file;
 
   if (clang::ObjCMethodDecl::classofKind(f->getDeclKind()))
   {
     const ObjCMethodDecl* fd = cast<ObjCMethodDecl>(f);
 
-    sl = sm.getSpellingLineNumber(fd->getLocStart());
-    sc = sm.getSpellingColumnNumber(fd->getLocStart());
-    el = sm.getSpellingLineNumber(fd->getLocEnd());
-    ec = sm.getSpellingColumnNumber(fd->getLocEnd());
+    sl = sm.getExpansionLineNumber(fd->getLocStart());
+    sc = sm.getExpansionColumnNumber(fd->getLocStart());
+    el = sm.getExpansionLineNumber(fd->getLocEnd());
+    ec = sm.getExpansionColumnNumber(fd->getLocEnd());
+
+    file = sm.getFileID(fd->getLocStart());
   }
   else if (clang::FunctionDecl::classofKind(f->getDeclKind()))
   {
     const FunctionDecl* fd = cast<FunctionDecl>(f);
 
-    sl = sm.getSpellingLineNumber(fd->getLocStart());
-    sc = sm.getSpellingColumnNumber(fd->getLocStart());
-    el = sm.getSpellingLineNumber(fd->getLocEnd());
-    ec = sm.getSpellingColumnNumber(fd->getLocEnd());
+    sl = sm.getExpansionLineNumber(fd->getLocStart());
+    sc = sm.getExpansionColumnNumber(fd->getLocStart());
+    el = sm.getExpansionLineNumber(fd->getLocEnd());
+    ec = sm.getExpansionColumnNumber(fd->getLocEnd());
+
+    file = sm.getFileID(fd->getLocStart());
   }
   else
   {
@@ -1687,11 +1695,11 @@ void ClangMetrics::NodeVisitor::handleSemicolon(const SourceManager& sm, const D
 
   // If this is the first time we see this semicolon, add it as an operator
   // and register it, so that it won't be counted multiple times.
-  auto it = rMyMetrics.mySemicolonLocations.find({ line, column });
+  auto it = rMyMetrics.mySemicolonLocations.find({ file, line, column });
   if (it == rMyMetrics.mySemicolonLocations.end())
   {
     rMyMetrics.myHalsteadByFunctions[f].add<Halstead::SemicolonOperator>();
-    rMyMetrics.mySemicolonLocations.emplace(line, column);
+    rMyMetrics.mySemicolonLocations.emplace(file, line, column);
   }
 }
 

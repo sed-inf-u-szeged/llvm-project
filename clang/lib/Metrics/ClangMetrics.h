@@ -25,15 +25,18 @@ class ClangMetrics {
   private:
     struct Comparator
     {
-      bool operator()(std::pair<unsigned, unsigned> a, std::pair<unsigned, unsigned> b) const
+      bool operator()(std::tuple<clang::FileID, unsigned, unsigned> a, std::tuple<clang::FileID, unsigned, unsigned> b) const
       {
-        if (a.first < b.first)
+        if (std::get<0>(a) < std::get<0>(b))
           return true;
 
-        if (a.first > b.first)
+        if (std::get<1>(a) < std::get<1>(b))
+          return true;
+
+        if (std::get<1>(a) > std::get<1>(b))
           return false;
 
-        return a.second < b.second;
+        return std::get<2>(a) < std::get<2>(b);
       }
     };
 
@@ -140,11 +143,11 @@ class ClangMetrics {
     // Maps enums (including C++ 11 strongly typed enums) to their namespace. If an enum is in the global namespace, it won't be found in this map.
     std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::EnumDecl*>> myEnumsByNamespaces;
 
-    // Stores line numbers where there is sure to be code
-    std::set<unsigned> myCodeLines;
+    // Stores line numbers where there is sure to be code.
+    std::set<std::pair<clang::FileID, unsigned>> myCodeLines;
 
     // Stores locations where there are semicolons. A single record is a pair of row/column within the file.
-    std::set<std::pair<unsigned, unsigned>, Comparator> mySemicolonLocations;
+    std::set<std::tuple<clang::FileID, unsigned, unsigned>, Comparator> mySemicolonLocations;
 
     // McCC for the whole file. (starting from 1 becaus of McCC "plus 1" definition)
     unsigned myFileMcCC = 1;

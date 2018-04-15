@@ -70,8 +70,8 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
           ss << "//" << sm.getFilename(cs->getLocation());
 
           // Also put the line info into the stream, as there can be multiple anonymous classes within the same file.
-          ss << "//" << sm.getSpellingLineNumber(cs->getLocStart()) << '_' << sm.getSpellingLineNumber(cs->getLocEnd());
-          ss << '_' << sm.getSpellingColumnNumber(cs->getLocStart()) << '_' << sm.getSpellingColumnNumber(cs->getLocEnd());
+          ss << "//" << sm.getExpansionLineNumber(cs->getLocStart()) << '_' << sm.getExpansionLineNumber(cs->getLocEnd());
+          ss << '_' << sm.getExpansionColumnNumber(cs->getLocStart()) << '_' << sm.getExpansionColumnNumber(cs->getLocEnd());
 
           break;
         }
