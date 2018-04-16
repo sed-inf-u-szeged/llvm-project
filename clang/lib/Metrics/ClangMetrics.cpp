@@ -16,7 +16,7 @@ void ClangMetrics::aggregateMetrics()
   // Helper for LOC calculation.
   LOCMeasure me(pMyASTContext->getSourceManager(), myCodeLines);
     
-  // Function metrics
+  // Function metrics:
   for (auto decl : myFunctions)
   {
     FunctionMetrics m;
@@ -63,7 +63,7 @@ void ClangMetrics::aggregateMetrics()
     }  
   }
 
-  // Class metrics
+  // Class metrics:
   for (auto decl : myClasses)
   {   
     LOCMeasure::LOC loc;
@@ -74,7 +74,7 @@ void ClangMetrics::aggregateMetrics()
       tloc = me.calculate(decl);
       loc = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
     
-      // Interfaces and Categories have Implementation lines of code to include
+      // Interfaces and Categories have Implementation lines of code to include.
       LOCMeasure::LOC imploc;
       if (const ObjCInterfaceDecl* id = dyn_cast_or_null<ObjCInterfaceDecl>(decl))
       {
@@ -115,7 +115,7 @@ void ClangMetrics::aggregateMetrics()
         LOCMeasure::merge(myMethodsByClasses, false));
     }
 
-    // "Raw" metrics without methods
+    // "Raw" metrics without methods.
     auto tloc_raw = me.calculate(decl);
     auto loc_raw = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
 
@@ -155,7 +155,7 @@ void ClangMetrics::aggregateMetrics()
     rMyOutput.mergeClassMetrics(decl, m, tloc_raw.total, tloc_raw.logical, loc_raw.total, loc_raw.logical);
   }
 
-  // Enum metrics
+  // Enum metrics:
   for (auto decl : myEnums)
   {
     auto loc = me.calculate(decl);
@@ -168,7 +168,7 @@ void ClangMetrics::aggregateMetrics()
     rMyOutput.mergeEnumMetrics(decl, m);
   }
 
-  // Namespace metrics
+  // Namespace metrics:
   for (auto decl : myNamespaces)
   {
     auto tloc = me.calculate(decl);
@@ -220,31 +220,58 @@ void ClangMetrics::aggregateMetrics()
     rMyOutput.mergeNamespaceMetrics(decl, m);
   }
 
-  // File metrics
+  // File and TU metrics:
   {
     struct
     {
       SourceManager* sm;
+      FileID fid;
 
-      SourceLocation getLocStart() const { return sm->getLocForStartOfFile(sm->getMainFileID()); }
-      SourceLocation getLocEnd() const { return sm->getLocForEndOfFile(sm->getMainFileID()); }
+      SourceLocation getLocStart() const { return sm->getLocForStartOfFile(fid); }
+      SourceLocation getLocEnd() const { return sm->getLocForEndOfFile(fid); }
     } helper;
-    helper.sm = &pMyASTContext->getSourceManager();
 
-    auto loc = me.calculate(&helper);
+    SourceManager& sm = pMyASTContext->getSourceManager();
+    helper.sm = &sm;
 
-    FileMetrics m;
-    m.LOC  = loc.total;
-    m.LLOC = loc.logical;
-    m.McCC = myFileMcCC;
+    FileMetrics tum {};
+    for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
+    {
+      helper.fid = sm.translateFile(it->first);
 
-    rMyOutput.mergeFileMetrics(currentFile, m);
+      auto loc = me.calculate(&helper);
+
+      FileMetrics m;
+      m.LOC  = loc.total;
+      m.LLOC = loc.logical;
+
+      // Init to 1, because the map may not contain any entries in a file without ifs, whiles, etc.
+      m.McCC = 1;
+
+      // Load McCC from the map if there's an entry.
+      auto mcccit = myMcCCByFiles.find(helper.fid);
+      if (mcccit != myMcCCByFiles.end())
+        m.McCC = mcccit->second + 1;
+
+      // Aggregate files into TU metrics.
+      tum.LOC  += m.LOC;
+      tum.LLOC += m.LLOC;
+
+      // Subtract 1 because we only add it once at the end of the aggregation (because of McCC "plus one" definition).
+      tum.McCC += m.McCC - 1;
+
+      rMyOutput.mergeFileMetrics(it->first->getName(), m);
+    }
+
+    // Add 1 to the McCC of the TU, because of the "plus one" definition. Then merge.
+    tum.McCC += 1;
+    rMyOutput.mergeTranslationUnitMetrics(myCurrentTU, tum);
   }
     
   // Debug print Halstead metrics if requested.
   if (myDebugPrintAfterVisit)
   {
-    std::cout << " --- HALSTEAD RESULTS BEGIN --- \n\n  Filename: " << currentFile << "\n\n\n";
+    std::cout << " --- HALSTEAD RESULTS BEGIN --- \n\n  Translation unit: " << myCurrentTU << "\n\n\n";
     for (auto& hs : myHalsteadByFunctions)
     {
     if (ObjCMethodDecl::classofKind(hs.first->getDeclKind()))

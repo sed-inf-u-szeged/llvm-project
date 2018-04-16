@@ -134,6 +134,7 @@ namespace clang
       void mergeEnumMetrics(const clang::EnumDecl* decl, const EnumMetrics& m);
       void mergeNamespaceMetrics(const clang::NamespaceDecl* decl, const NamespaceMetrics& m);
       void mergeFileMetrics(const std::string& file, const FileMetrics& m);
+      void mergeTranslationUnitMetrics(const std::string& file, const FileMetrics& m);
 
     private:
       UIDFactory& rMyFactory;
@@ -154,14 +155,16 @@ namespace clang
       std::unordered_map<std::shared_ptr<const UID>, NamespaceMetrics, UIDHasher, UIDEq> myNamespaceMetrics;
 
       std::unordered_map<std::string, FileMetrics> myFileMetrics;
+      std::unordered_map<std::string, FileMetrics> myTranslationUnitMetrics;
 
     public:
       // Iterator types
-      typedef decltype(myFunctionMetrics)::const_iterator  function_iterator;
-      typedef decltype(myClassMetrics)::const_iterator     class_iterator;
-      typedef decltype(myEnumMetrics)::const_iterator      enum_iterator;
-      typedef decltype(myNamespaceMetrics)::const_iterator namespace_iterator;
-      typedef decltype(myFileMetrics)::const_iterator      file_iterator;
+      typedef decltype(myFunctionMetrics)::const_iterator        function_iterator;
+      typedef decltype(myClassMetrics)::const_iterator           class_iterator;
+      typedef decltype(myEnumMetrics)::const_iterator            enum_iterator;
+      typedef decltype(myNamespaceMetrics)::const_iterator       namespace_iterator;
+      typedef decltype(myFileMetrics)::const_iterator            file_iterator;
+      typedef decltype(myTranslationUnitMetrics)::const_iterator tu_iterator;
 
       //! Returns a const ForwardIterator to the beginning of the internal function metrics structure.
       //! The iterator's value_tpye is std::pair<std::shared_ptr<const UID>, FunctionMetrics>.
@@ -208,6 +211,15 @@ namespace clang
       //! The iterator's value_tpye is std::pair<std::string, FileMetrics>.
       file_iterator file_end() const { return myFileMetrics.end(); }
 
+      //! Returns a const ForwardIterator to the beginning of the internal tranlsation unit metrics structure.
+      //! The iterator's value_tpye is std::pair<std::string, FileMetrics>.
+      //! The order of iteration is undefined, but all elements are guaranteed to be iterated over until tu_end() is reached.
+      tu_iterator tu_begin() const { return myTranslationUnitMetrics.begin(); }
+
+      //! Returns a const ForwardIterator to the end of the internal translation unit metrics structure.
+      //! The iterator's value_tpye is std::pair<std::string, FileMetrics>.
+      tu_iterator tu_end() const { return myTranslationUnitMetrics.end(); }
+
 
       //! Iterator wrappers for use in range based for loops.
       ItHelper<function_iterator> functions() const { return ItHelper<function_iterator>(function_begin(), function_end()); }
@@ -215,6 +227,7 @@ namespace clang
       ItHelper<enum_iterator> enums() const { return ItHelper<enum_iterator>(enum_begin(), enum_end()); }
       ItHelper<namespace_iterator> namespaces() const { return ItHelper<namespace_iterator>(namespace_begin(), namespace_end()); }
       ItHelper<file_iterator> files() const { return ItHelper<file_iterator>(file_begin(), file_end()); }
+      ItHelper<tu_iterator> translation_units() const { return ItHelper<tu_iterator>(tu_begin(), tu_end()); }
     };
   }
 }

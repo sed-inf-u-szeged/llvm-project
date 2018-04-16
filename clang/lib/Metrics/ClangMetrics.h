@@ -40,16 +40,24 @@ class ClangMetrics {
       }
     };
 
+    struct FileIDHasher
+    {
+      size_t operator()(const FileID& id) const
+      {
+        return id.getHashValue();
+      }
+    };
+
   public:
     //! Constructor.
     //!  \param output reference to the Output object where the results will be stored
     //!  \param context the AST context
-    ClangMetrics(Output& output, ASTContext& context) : rMyOutput(output), currentFile(""), pMyASTContext(&context)
+    ClangMetrics(Output& output, ASTContext& context) : rMyOutput(output), myCurrentTU(""), pMyASTContext(&context)
     {}
 
     //! Constructor.
     //!  \param output reference to the Output object where the results will be stored
-    ClangMetrics(Output& output) : rMyOutput(output), currentFile(""), pMyASTContext(nullptr)
+    ClangMetrics(Output& output) : rMyOutput(output), myCurrentTU(""), pMyASTContext(nullptr)
     {}
 
     //! If set to true, debug information will be printed to the standard output after
@@ -69,9 +77,9 @@ class ClangMetrics {
     }
 
     // Update the current compilation unit file
-    void updateCurrentFile(StringRef currentFile)
+    void updateCurrentTU(StringRef currentTU)
     {
-      this->currentFile = currentFile;
+      myCurrentTU = currentTU;
     }
 
     // Returns a pointer to the actual AST context
@@ -88,8 +96,8 @@ class ClangMetrics {
     // Stores the output.
     Output& rMyOutput;
 
-    // The current file.
-    std::string currentFile;
+    // The name of the file of the current translation unit.
+    std::string myCurrentTU;
 
   private:
     // The AST context.
@@ -149,9 +157,8 @@ class ClangMetrics {
     // Stores locations where there are semicolons. A single record is a pair of row/column within the file.
     std::set<std::tuple<clang::FileID, unsigned, unsigned>, Comparator> mySemicolonLocations;
 
-    // McCC for the whole file. (starting from 1 becaus of McCC "plus 1" definition)
-    unsigned myFileMcCC = 1;
-
+    // McCC per file.
+    std::unordered_map<FileID, unsigned, FileIDHasher> myMcCCByFiles;
 };
 
 } // namespace detail

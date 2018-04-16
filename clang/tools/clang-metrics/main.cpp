@@ -198,6 +198,37 @@ void printFiles(const Output& output)
   cout << "  File metrics written to 'File-Metrics.csv'\n";
 }
 
+void printTUs(const Output& output)
+{
+  typedef pair<string, FileMetrics> record_t;
+
+  vector<record_t> tus(output.tu_begin(), output.tu_end());
+  if (tus.empty())
+  {
+    cout << "  No translation unit metrics recorded - skipping...\n";
+    return;
+  }
+
+  sort(tus.begin(), tus.end(), [](const record_t& lhs, const record_t& rhs)
+  {
+    return lhs.first < rhs.first;
+  });
+
+  std::ofstream out("TU-Metrics.csv");
+  out << "Name,LOC,LLOC,McCC\n";
+
+  for (const record_t& m : tus)
+  {
+    out
+      << m.first << sep
+      << m.second.LOC << sep
+      << m.second.LLOC << sep
+      << m.second.McCC << endl;
+  }
+
+  cout << "  Translation unit metrics written to 'TU-Metrics.csv'\n";
+}
+
 int main(int argc, const char** argv)
 {
   // Help message.
@@ -230,6 +261,7 @@ int main(int argc, const char** argv)
   printEnums(output);
   printNamespaces(output);
   printFiles(output);
+  printTUs(output);
 
   cout << "\nExecution finished.\n\n";
 

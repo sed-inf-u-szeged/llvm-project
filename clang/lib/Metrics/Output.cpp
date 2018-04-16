@@ -119,3 +119,8 @@ void Output::mergeFileMetrics(const std::string& file, const FileMetrics& m)
 {
   myFileMetrics[file] = m;
 }
+
+void Output::mergeTranslationUnitMetrics(const std::string& file, const FileMetrics& m)
+{
+  myTranslationUnitMetrics[file] = m;
+}

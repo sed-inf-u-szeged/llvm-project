@@ -13,7 +13,7 @@ std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInsta
 {
   rMyOutput.getFactory().onSourceOperationBegin(ci.getASTContext(), file);
   updateASTContext(ci.getASTContext());
-  updateCurrentFile(file);
+  updateCurrentTU(file);
   return std::unique_ptr<ASTConsumer>(new Consumer(*this));
 }
 

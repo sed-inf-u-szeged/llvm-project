@@ -1280,8 +1280,11 @@ bool ClangMetrics::NodeVisitor::VisitUnaryOperator(const clang::UnaryOperator* o
 
 void ClangMetrics::NodeVisitor::increaseMcCCStmt(const Stmt* stmt)
 {
+  // Get the SourceManager.
+  const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
+
   // Increase per file McCC.
-  ++rMyMetrics.myFileMcCC;
+  ++rMyMetrics.myMcCCByFiles[sm.getFileID(stmt->getLocStart())];
 
   const Decl* parentDecl = getDeclFromStmt(*stmt);
 
