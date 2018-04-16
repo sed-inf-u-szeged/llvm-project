@@ -86,14 +86,6 @@ void Output::mergeEnumMetrics(const clang::EnumDecl* decl, const EnumMetrics& m)
   if (EnumMetrics* cm = loadOnCondition(myEnumMetrics, rMyFactory.create(decl), decl->getDefinition() == decl))
   {
     *cm = m;
-    /*EnumMetrics& om = *cm;
-
-    // First occurence only
-    if (om.name.empty())
-      om.name = m.name;
-
-    om.LOC  += m.LOC;
-    om.LLOC += m.LLOC;*/
   }
 }
 

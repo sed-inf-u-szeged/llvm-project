@@ -145,7 +145,6 @@ class ClangMetrics {
     std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::NamespaceDecl*>> myInnerNamespacesByNamespaces;
 
     // Maps classes/structs/unions to their namespace. If a class/struct/union is in the global namespace, it won't be found in this map.
-
     std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::Decl*>> myClassesByNamespaces;
 
     // Maps enums (including C++ 11 strongly typed enums) to their namespace. If an enum is in the global namespace, it won't be found in this map.
@@ -157,7 +156,8 @@ class ClangMetrics {
     // Stores locations where there are semicolons. A single record is a pair of row/column within the file.
     std::set<std::tuple<clang::FileID, unsigned, unsigned>, Comparator> mySemicolonLocations;
 
-    // McCC per file.
+    // McCC per file. If a file has an McCC of 1, it won't be found in this map.
+    // Note that the values stored here are one less than the final McCC.
     std::unordered_map<FileID, unsigned, FileIDHasher> myMcCCByFiles;
 };
 
