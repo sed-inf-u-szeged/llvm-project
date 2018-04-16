@@ -30,7 +30,7 @@ void Output::mergeFunctionMetrics(const clang::Decl* decl, const FunctionMetrics
   // TODO: ObjC metrics!
   if (const clang::FunctionDecl* fd = dyn_cast<FunctionDecl>(decl))
   {
-    if (FunctionMetrics* om = loadOnCondition(myFunctionMetrics, rMyFactory.create(decl), fd->isDefined()))
+    if (FunctionMetrics* om = loadOnCondition(myFunctionMetrics, rMyFactory.create(decl), fd->isThisDeclarationADefinition()))
       *om = m;
   }
 }
@@ -40,24 +40,24 @@ void Output::mergeClassMetrics(const clang::Decl* decl, const ClassMetrics& m, u
   // TODO: ObjC metrics!
   ClassMetrics* cm = nullptr;
   if (const CXXRecordDecl* cd = dyn_cast<CXXRecordDecl>(decl))
-    cm = loadOnCondition(myClassMetrics, rMyFactory.create(decl), cd->hasDefinition());
-  
+    cm = loadOnCondition(myClassMetrics, rMyFactory.create(decl), cd->getDefinition() == decl);
+
   if (cm)
   {
     ClassMetrics& om = *cm;
 
-    // First occurence only
+    // First occurence only.
     if (om.name.empty())
     {
       om.name = m.name;
 
-      // NLM is set on first occurence - it cannot change later anyway
+      // NLM is set on first occurence - it cannot change later anyway.
       om.NLM = m.NLM;
     }
     else
     {
-      // Subtract the "raw class" metrics to avoid counting them multiple times
-      // These are the lines inside the class definition
+      // Subtract the "raw class" metrics to avoid counting them multiple times.
+      // These are the lines inside the class definition.
       om.LOC   -= locT_raw;
       om.TLOC  -= tlocT_raw;
       om.LLOC  -= locL_raw;
@@ -72,7 +72,7 @@ void Output::mergeClassMetrics(const clang::Decl* decl, const ClassMetrics& m, u
       }
     }
 
-    // Merge the size metrics to the ones already here
+    // Merge the size metrics to the ones already here.
     om.LOC   += m.LOC;
     om.TLOC  += m.TLOC;
     om.LLOC  += m.LLOC;
@@ -83,16 +83,17 @@ void Output::mergeClassMetrics(const clang::Decl* decl, const ClassMetrics& m, u
 void Output::mergeEnumMetrics(const clang::EnumDecl* decl, const EnumMetrics& m)
 {
   // TODO: ObjC metrics!
-  if (EnumMetrics* cm = loadOnCondition(myEnumMetrics, rMyFactory.create(decl), decl->getDefinition()))
+  if (EnumMetrics* cm = loadOnCondition(myEnumMetrics, rMyFactory.create(decl), decl->getDefinition() == decl))
   {
-    EnumMetrics& om = *cm;
+    *cm = m;
+    /*EnumMetrics& om = *cm;
 
     // First occurence only
     if (om.name.empty())
       om.name = m.name;
 
     om.LOC  += m.LOC;
-    om.LLOC += m.LLOC;
+    om.LLOC += m.LLOC;*/
   }
 }
 
@@ -100,7 +101,7 @@ void Output::mergeNamespaceMetrics(const clang::NamespaceDecl* decl, const Names
 {
   NamespaceMetrics& om = myNamespaceMetrics[rMyFactory.create(decl)];
 
-  // First occurence only
+  // First occurence only.
   if (om.name.empty())
     om.name = m.name;
 
