@@ -217,7 +217,7 @@ void ClangMetrics::aggregateMetrics()
         m.NEN = 0;
     }
 
-    rMyOutput.mergeNamespaceMetrics(decl, m);
+    rMyOutput.mergeNamespaceMetrics(pMyASTContext->getSourceManager(), decl, m);
   }
 
   // File and TU metrics:

@@ -13,6 +13,7 @@ namespace clang
   class CXXRecordDecl;
   class EnumDecl;
   class NamespaceDecl;
+  class SourceManager;
 
   namespace metrics
   {
@@ -132,7 +133,7 @@ namespace clang
       void mergeClassMetrics(const clang::Decl* decl, const ClassMetrics& m, unsigned tlocT_raw, unsigned tlocL_raw, unsigned locT_raw, unsigned locL_raw);
 
       void mergeEnumMetrics(const clang::EnumDecl* decl, const EnumMetrics& m);
-      void mergeNamespaceMetrics(const clang::NamespaceDecl* decl, const NamespaceMetrics& m);
+      void mergeNamespaceMetrics(const clang::SourceManager& sm, const clang::NamespaceDecl* decl, const NamespaceMetrics& m);
       void mergeFileMetrics(const std::string& file, const FileMetrics& m);
       void mergeTranslationUnitMetrics(const std::string& file, const FileMetrics& m);
 

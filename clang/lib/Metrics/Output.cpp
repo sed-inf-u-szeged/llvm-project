@@ -97,8 +97,12 @@ void Output::mergeEnumMetrics(const clang::EnumDecl* decl, const EnumMetrics& m)
   }
 }
 
-void Output::mergeNamespaceMetrics(const clang::NamespaceDecl* decl, const NamespaceMetrics& m)
+void Output::mergeNamespaceMetrics(const clang::SourceManager& sm, const clang::NamespaceDecl* decl, const NamespaceMetrics& m)
 {
+  // Skip if this file was already processed in another TU.
+  if (myFileMetrics.find(sm.getFilename(decl->getLocation())) != myFileMetrics.end())
+    return;
+
   NamespaceMetrics& om = myNamespaceMetrics[rMyFactory.create(decl)];
 
   // First occurence only.
