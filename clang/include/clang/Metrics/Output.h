@@ -20,6 +20,7 @@ namespace clang
     namespace detail
     {
       class ClangMetrics;
+      class GlobalMergeData;
     }
 
     /*!
@@ -35,31 +36,6 @@ namespace clang
     class Output final
     {
     private:
-      // Helper for UID hashing.
-      struct UIDHasher
-      {
-        typedef std::shared_ptr<const UID> argument_type;
-        typedef size_t result_type;
-
-        result_type operator()(const argument_type& o) const
-        {
-          return o->hash();
-        }
-      };
-
-      // Helper for UID equivalence.
-      struct UIDEq
-      {
-        typedef std::shared_ptr<const UID> first_argument_type;
-        typedef std::shared_ptr<const UID> second_argument_type;
-        typedef bool result_type;
-
-        result_type operator()(const first_argument_type& lhs, const second_argument_type& rhs) const
-        {
-          return lhs->equals(*rhs);
-        }
-      };
-
       // Helper for iterator range-for wrappers.
       template<class T> class ItHelper
       {
@@ -127,6 +103,11 @@ namespace clang
       }
 
     private:
+      // As the final step of the calculation, metrics are aggregated into the Output.
+      // This allows private access for the operation without being visible from outside.
+      friend class detail::GlobalMergeData;
+
+      // TODO: Remove these in favour of the new functions!
       // Adds new results to the stored ones. Called by ClangMetricsAction at the end of each source operation.
       friend class detail::ClangMetrics;
       void mergeFunctionMetrics(const clang::Decl* decl, const FunctionMetrics& m);

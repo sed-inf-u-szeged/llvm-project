@@ -1,7 +1,8 @@
-#include <clang/Metrics/invoke.h>
-#include <clang/Metrics/Output.h>
 #include "ClangMetricsAction.h"
 #include "NodeVisitor.h"
+
+#include <clang/Metrics/invoke.h>
+#include <clang/Metrics/Output.h>
 
 #include <clang/Tooling/Tooling.h>
 
@@ -21,30 +22,46 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   class Factory : public FrontendActionFactory
   {
   public:
-    Factory(Output& output, const InvokeOptions& options) : rMyOutput(output), rMyOptions(options)
+    Factory(Output& output, detail::GlobalMergeData& data, const InvokeOptions& options) :
+      rMyOutput(output),
+      rMyData(data),
+      rMyOptions(options)
     {}
 
     FrontendAction* create() override
     {
-      detail::ClangMetricsAction* ptr = new detail::ClangMetricsAction(rMyOutput);
-      ptr->debugPrintAfterVisit(rMyOptions.enableDebugPrint);
+      detail::ClangMetricsAction* ptr = new detail::ClangMetricsAction(rMyOutput, rMyData);
+      ptr->debugPrintHalsteadAfterVisit(rMyOptions.enableHalsteadDebugPrint);
       return ptr;
     }
 
   private:
     Output& rMyOutput;
+    detail::GlobalMergeData& rMyData;
     const InvokeOptions& rMyOptions;
   };
 
   // Create factory and invoke main program.
-  std::unique_ptr<Factory> factory(new Factory(output, options));
-  return !tool.run(factory.get());
+  detail::GlobalMergeData gmd;
+  std::unique_ptr<Factory> factory(new Factory(output, gmd, options));
+  if (tool.run(factory.get()))
+    return false;
+
+  // Do debug print.
+  if (options.enableRangeDebugPrint)
+    gmd.debugPrintObjectRanges(std::cout);
+
+  // Aggregate metrics.
+  gmd.aggregate(output);
+
+  return true;
 }
 
 void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options)
 {
-  detail::ClangMetrics clangMetrics(output, context);
-  clangMetrics.debugPrintAfterVisit(options.enableDebugPrint);
+  detail::GlobalMergeData gmd;
+  detail::ClangMetrics clangMetrics(output, gmd, context);
+  clangMetrics.debugPrintHalsteadAfterVisit(options.enableHalsteadDebugPrint);
 
   detail::ClangMetrics::NodeVisitor visitor(clangMetrics);
 
@@ -55,4 +72,10 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
     visitor.TraverseStmt(stmt);
 
   clangMetrics.aggregateMetrics();
+
+  // Do debug print.
+  if (options.enableRangeDebugPrint)
+    gmd.debugPrintObjectRanges(std::cout);
+
+  gmd.aggregate(output);
 }

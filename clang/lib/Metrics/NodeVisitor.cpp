@@ -625,6 +625,14 @@ bool ClangMetrics::NodeVisitor::VisitObjCProtocolDecl(const ObjCProtocolDecl* de
 
 bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
 {
+  // Add it to the GMD.
+  rMyMetrics.rMyGMD.addDecl(decl);
+
+  // Add the places where there is sure to be code.
+  rMyMetrics.rMyGMD.addCodeLine(decl->getLocStart());
+  rMyMetrics.rMyGMD.addCodeLine(decl->getLocation());
+  rMyMetrics.rMyGMD.addCodeLine(decl->getLocEnd());
+
   // Add starting, actual and ending line numbers to set.
   // These are the only places where the decl is sure to contain code.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
@@ -646,6 +654,10 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
 
 bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
 {
+  // Add places where there is sure to be code.
+  rMyMetrics.rMyGMD.addCodeLine(stmt->getLocStart());
+  rMyMetrics.rMyGMD.addCodeLine(stmt->getLocEnd());
+
   // Add starting and ending line numbers to set.
   // These are the only places where the statement is sure to contain code.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();

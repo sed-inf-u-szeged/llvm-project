@@ -7,6 +7,9 @@ using namespace clang;
 using namespace clang::metrics;
 using namespace clang::metrics::detail;
 
+
+const GlobalMergeData::Range GlobalMergeData::INVALID_RANGE = {};
+
 void ClangMetrics::aggregateMetrics()
 {
   using namespace std;
@@ -14,7 +17,7 @@ void ClangMetrics::aggregateMetrics()
   rMyOutput.getFactory().onSourceOperationEnd(*pMyASTContext);
 
   // Helper for LOC calculation.
-  LOCMeasure me(pMyASTContext->getSourceManager(), myCodeLines);
+  /*LOCMeasure me(pMyASTContext->getSourceManager(), myCodeLines);
     
   // Function metrics:
   for (auto decl : myFunctions)
@@ -288,7 +291,423 @@ void ClangMetrics::aggregateMetrics()
       std::cout << "\n  \tOperands:  " << hs.second.getOperandCount() << "\tD: " << hs.second.getDistinctOperandCount() << "\n\n\n";
     }
     std::cout << " --- HALSTEAD RESULTS END --- \n\n";
+  }*/
+}
+
+void GlobalMergeData::addDecl(const clang::Decl* decl)
+{
+  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
+
+  UIDFactory& factory = pMyAnalyzer->getUIDFactory();
+  
+  Range::range_t type;
+  Range::oper_t  oper;
+  Object::kind_t  kind;
+  const Range* parent = nullptr;
+
+  auto createTemporaryRange = [this](const Decl* decl)
+  {
+     SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+
+      SourceLocation start = decl->getLocStart();
+      SourceLocation end   = decl->getLocEnd();
+
+      Range r;
+      r.fileID      = fileid(sm.getFilename(start));
+      r.lineBegin   = sm.getExpansionLineNumber(start);
+      r.lineEnd     = sm.getExpansionLineNumber(end);
+      r.columnBegin = sm.getExpansionColumnNumber(start);
+      r.columnEnd   = sm.getExpansionColumnNumber(end);
+
+      return r;
+  };
+
+  auto addNamespaceRange = [&](const DeclContext* pn)
+  {
+    if (isa<NamespaceDecl>(pn))
+    {
+      auto it = myObjects.find({ factory.create(cast<Decl>(pn)), Object::kind_t() });
+      if (it != myObjects.end())
+      {
+
+        Range r = createTemporaryRange(decl);
+
+        auto rit = it->second.lower_bound(&r);
+        if (rit != it->second.begin())
+        {
+          const Range* p = *(--rit);
+          if (containsRange(*p, r))
+            parent = p;
+        }
+      }
+    }
+  };
+
+  if (auto d = dyn_cast<FunctionDecl>(decl))
+  {
+    type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
+    kind = Object::FUNCTION;
+    oper = Range::LOC_METHOD;
+
+    if (auto d = dyn_cast<CXXMethodDecl>(decl))
+    {
+      const Range* parentRange = getDefinition(factory.create(d->getParent()));
+      if (parentRange && parentRange->type == Range::DEFINITION && !containsRange(*parentRange, createTemporaryRange(d)))
+        parent = parentRange;
+    }
+  }
+  else if (auto d = dyn_cast<CXXRecordDecl>(decl))
+  {
+    type = (d->getDefinition() == d ? Range::DEFINITION : Range::DECLARATION);
+    kind = Object::CLASS;
+    oper = Range::LOC_SUBTRACT;
+
+    const DeclContext* pn = d->getParent();
+    if (pn)
+    {
+      if (isa<CXXRecordDecl>(pn) || isa<FunctionDecl>(pn))
+      {
+        const Range* parentRange = getDefinition(factory.create(cast<Decl>(pn)));
+        if (parentRange && parentRange->type == Range::DEFINITION)
+          parent = parentRange;
+      }
+      else
+      {
+        addNamespaceRange(pn);
+      }
+    }
+  }
+  else if (auto d = dyn_cast<EnumDecl>(decl))
+  {
+    type = (d->getDefinition() == d ? Range::DEFINITION : Range::DECLARATION);
+    kind = Object::ENUM;
+    oper = Range::oper_t();
+  }
+  else if (auto d = dyn_cast<NamespaceDecl>(decl))
+  {
+    type = Range::DEFINITION;
+    kind = Object::NAMESPACE;
+    oper = Range::LOC_SUBTRACT;
+
+    if (const DeclContext* pn = d->getParent())
+      addNamespaceRange(pn);
+  }
+  else
+  {
+    return;
+  }
+
+  const Range& range = createRange(type, decl->getSourceRange(), parent, oper);
+  myObjects[{ factory.create(decl), kind }].insert(&range);
+}
+
+void GlobalMergeData::addCodeLine(SourceLocation loc)
+{
+  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
+  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+
+  unsigned fid = fileid(sm.getFilename(loc));
+  if (fid == 0)
+    return;
+
+  myCodeLines.emplace(fid, sm.getExpansionLineNumber(loc));
+}
+
+void GlobalMergeData::aggregate(Output& output) const
+{
+  struct LOCInfo
+  {
+    unsigned LOC   = 0;
+    unsigned LLOC  = 0;
+    unsigned TLOC  = 0;
+    unsigned TLLOC = 0;
+  };
+
+  std::unordered_map<const Range*, LOCInfo> locmap;
+  for (const Range& range : myRanges)
+  {
+    LOCInfo& info = locmap[&range];
+
+    info.LOC  = range.lineEnd - range.lineBegin + 1;
+
+    auto beg  = myCodeLines.lower_bound({ range.fileID, range.lineBegin });
+    auto end  = myCodeLines.upper_bound({ range.fileID, range.lineEnd });
+    info.LLOC = std::distance(beg, end);
+
+    info.TLOC  = info.LOC;
+    info.TLLOC = info.LLOC;
+
+    if (const Range* parent = range.parent)
+    {
+      LOCInfo& parentInfo = locmap[parent];
+      if (range.operation == Range::LOC_METHOD)
+      {
+        parentInfo.LOC   += info.TLOC;
+        parentInfo.LLOC  += info.TLLOC;
+        parentInfo.TLOC  += info.TLOC;
+        parentInfo.TLLOC += info.TLLOC;
+      }
+      else
+      {
+        parentInfo.LOC  -= info.LOC;
+        parentInfo.LLOC -= info.LLOC;
+      }
+    }
+  }
+
+  for (auto& object : myObjects)
+  {
+    if (object.first.kind == Object::FUNCTION)
+    {
+      FunctionMetrics& m = output.myFunctionMetrics[object.first.uid];
+      auto it = locmap.find(getDefinition(object.first.uid));
+      if (it != locmap.end())
+      {
+        /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+        m.LOC   = it->second.LOC;
+        m.LLOC  = it->second.LLOC;
+        m.TLOC  = it->second.TLOC;
+        m.TLLOC = it->second.TLLOC;
+      }
+    }
+    else if (object.first.kind == Object::CLASS)
+    {
+      ClassMetrics& m = output.myClassMetrics[object.first.uid];
+      auto it = locmap.find(getDefinition(object.first.uid));
+      if (it != locmap.end())
+      {
+        /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+        m.LOC   = it->second.LOC;
+        m.LLOC  = it->second.LLOC;
+        m.TLOC  = it->second.TLOC;
+        m.TLLOC = it->second.TLLOC;
+      }
+    }
+    else if (object.first.kind == Object::ENUM)
+    {
+      EnumMetrics& m = output.myEnumMetrics[object.first.uid];
+      auto it = locmap.find(getDefinition(object.first.uid));
+      if (it != locmap.end())
+      {
+        /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+        m.LOC  = it->second.LOC;
+        m.LLOC = it->second.LLOC;
+      }
+    }
+    else if (object.first.kind == Object::NAMESPACE)
+    {
+      NamespaceMetrics& m = output.myNamespaceMetrics[object.first.uid];
+      for (const Range* range : object.second)
+      {
+        auto it = locmap.find(range);
+        if (it != locmap.end())
+        {
+          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+          m.LOC   += it->second.LOC;
+          m.LLOC  += it->second.LLOC;
+          m.TLOC  += it->second.TLOC;
+          m.TLLOC += it->second.TLLOC;
+        }
+      }
+    }
   }
 }
 
+void GlobalMergeData::debugPrintObjectRanges(std::ostream& os) const
+{
+  auto printRange = [&os](const Range& range)
+  {
+    os << '#' << &range << " in file ID " << range.fileID;
+    os << " (" << range.lineBegin << ", " << range.columnBegin << ") -> (" << range.lineEnd << ", " << range.columnEnd << ')';
 
+    if (range.parent)
+      os << " in #" << range.parent;
+
+    os << '\n';
+  };
+
+  for (auto& object : myObjects)
+  {
+    switch (object.first.kind)
+    {
+    case Object::FUNCTION:  os << "FUNCTION: ";  break;
+    case Object::CLASS:     os << "CLASS: ";     break;
+    case Object::ENUM:      os << "ENUM: ";      break;
+    case Object::NAMESPACE: os << "NAMESPACE: "; break;
+    }
+
+    std::string debugName = object.first.uid->getDebugName();
+    if (!debugName.empty())
+      os << debugName << '\n';
+    else
+      os << "(no debug information given)\n";
+
+    if (!object.second.empty())
+    {
+      if (object.first.kind != Object::NAMESPACE)
+      {
+        os << "Definition at: ";
+        const Range* def = getDefinition(object.first.uid);
+        if (def && def->type == Range::DEFINITION)
+          printRange(*def);
+        else
+          os << "no definition\n";
+
+        if (object.second.size() == 1)
+        {
+          const Range* dr = *object.second.begin();
+          if (dr->type == Range::DEFINITION)
+          {
+            os << "Declarations: definition only\n";
+          }
+          else
+          {
+            os << "Declaration: ";
+            printRange(*dr);
+          }
+        }
+        else if (object.second.size() == 2)
+        {
+          auto it = object.second.begin();
+          if ((*it)->type == Range::DEFINITION)
+            ++it;
+
+          os << "Declaration: ";
+          printRange(**it);
+        }
+        else
+        {
+          os << "Declarations:\n";
+          for (const Range* r : object.second)
+          {
+            if (r->type == Range::DECLARATION)
+              os << " - ", printRange(*r);
+          }
+        }
+      }
+      else
+      {
+        if (object.second.size() == 1)
+        {
+          os << "Range: ";
+          printRange(**object.second.begin());
+        }
+        else
+        {
+          os << "Ranges:\n";
+          for (const Range* r : object.second)
+            os << " - ", printRange(*r);
+        }
+      }
+    }
+    else
+    {
+      os << "No range information stored.\n";
+    }
+
+    os << '\n';
+  }
+
+  os << "\nFiles:\n";
+  for (auto& file : myFileIDs)
+    os << " - ID: " << file.second << "\tFile: " << file.first << '\n';
+
+  os << '\n';
+}
+
+unsigned GlobalMergeData::fileid(const std::string& filename)
+{
+  if (filename.empty())
+    return 0;
+
+  auto it = myFileIDs.find(filename);
+  if (it != myFileIDs.end())
+    return it->second;
+
+  return myFileIDs.emplace(filename, myNextFileID++).first->second;
+}
+
+const GlobalMergeData::Range&
+GlobalMergeData::createRange(Range::range_t type, const std::string& filename, unsigned lineBegin,
+  unsigned lineEnd, unsigned columnBegin, unsigned columnEnd, const Range* parent, Range::oper_t operation)
+{
+  if (lineBegin > lineEnd)
+    return INVALID_RANGE;
+
+  if (lineBegin == lineEnd && columnBegin > columnEnd)
+    return INVALID_RANGE;
+
+  unsigned fid = fileid(filename);
+  if (fid == 0)
+    return INVALID_RANGE;
+
+  Range range;
+  range.parent      = parent;
+  range.fileID      = fid;
+  range.lineBegin   = lineBegin;
+  range.lineEnd     = lineEnd;
+  range.columnBegin = columnBegin;
+  range.columnEnd   = columnEnd;
+  range.type        = type;
+  range.operation   = operation;
+
+  return *myRanges.insert(range).first;
+}
+
+const GlobalMergeData::Range&
+GlobalMergeData::createRange(Range::range_t type, SourceLocation start, SourceLocation end, const Range* parent, Range::oper_t operation)
+{
+  if (start.isInvalid() || end.isInvalid())
+    return INVALID_RANGE;
+
+  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
+
+  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+  return createRange(type, sm.getFilename(start), sm.getExpansionLineNumber(start),
+    sm.getExpansionLineNumber(end), sm.getExpansionColumnNumber(start), sm.getExpansionColumnNumber(end), parent, operation);
+}
+
+const GlobalMergeData::Range& GlobalMergeData::createRange(Range::range_t type, SourceRange r, const Range* parent, Range::oper_t operation)
+{
+  return createRange(type, r.getBegin(), r.getEnd(), parent, operation);
+}
+
+const GlobalMergeData::Range* GlobalMergeData::getDefinition(std::shared_ptr<UID> uid) const
+{
+  auto it = myObjects.find({ uid, Object::kind_t() });
+  if (it == myObjects.end())
+    return nullptr;
+
+  if (!it->second.empty())
+  {
+    for (const Range* range : it->second)
+    {
+      if (range->type == Range::DEFINITION)
+        return range;
+    }
+
+    return *it->second.begin();
+  }
+
+  return nullptr;
+}
+
+bool GlobalMergeData::containsRange(const Range& outer, const Range& inner)
+{
+  if (outer.fileID != inner.fileID)
+    return false;
+
+  if (outer.lineBegin > inner.lineBegin)
+    return false;
+
+  if (outer.lineEnd < inner.lineEnd)
+    return false;
+
+  if (outer.lineBegin == inner.lineBegin && outer.columnBegin > inner.columnBegin)
+    return false;
+
+  if (outer.lineEnd == inner.lineEnd && outer.columnEnd < inner.columnEnd)
+    return false;
+
+  return true;
+}

@@ -43,6 +43,8 @@ namespace clang
         return std::hash<std::string>()(myMangledName);
       }
 
+      std::string getDebugName() const override { return myMangledName; }
+
     private:
       // Stores the mangled name of the entity
       const std::string myMangledName;
@@ -56,7 +58,7 @@ namespace clang
     public:
       BasicUIDFactory();
     private:
-      void onSourceOperationEnd(clang::ASTContext& context) override;
+      void onSourceOperationBegin(clang::ASTContext& context, llvm::StringRef filename) override;
       std::unique_ptr<UID> create(const clang::Decl* decl) override;
 
     private:

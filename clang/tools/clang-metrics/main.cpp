@@ -238,6 +238,7 @@ int main(int argc, const char** argv)
   // Command line parameters.
   llvm::cl::OptionCategory optCat("clang-metrics options");
   llvm::cl::opt<bool> optHalsteadDebugPrint("hs-debug-print", llvm::cl::desc("Print Halstead metrics calculation related debug information."), llvm::cl::cat(optCat));
+  llvm::cl::opt<bool> optRangeDebugPrint("range-debug-print", llvm::cl::desc("Print ranges used for LOC calculation."), llvm::cl::cat(optCat));
 
   // Parse command line arguments.
   clang::tooling::CommonOptionsParser parser(argc, argv, optCat);
@@ -246,7 +247,8 @@ int main(int argc, const char** argv)
   Output output(factory);
 
   InvokeOptions options;
-  options.enableDebugPrint = optHalsteadDebugPrint;
+  options.enableHalsteadDebugPrint = optHalsteadDebugPrint;
+  options.enableRangeDebugPrint    = optRangeDebugPrint;
 
   cout << "Calculating code metrics...\n";
   bool ret = invoke(output, parser.getCompilations(), parser.getSourcePathList(), options);

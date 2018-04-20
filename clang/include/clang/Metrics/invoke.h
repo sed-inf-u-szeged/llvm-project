@@ -23,9 +23,13 @@ namespace clang
     //! List of possible options passed to invoke().
     struct InvokeOptions
     {
-      //! If true, debug data will be printed to the standard output after each source operation.
+      //! If true, Halstead debug data will be printed to the standard output after each source operation.
       //! Default value is false.
-      bool enableDebugPrint = false;
+      bool enableHalsteadDebugPrint = false;
+
+      //! If true, range debug data (used for LOC calculation) will be printed to the standard output at the end of the calculation.
+      //! Default value is false.
+      bool enableRangeDebugPrint = false;
     };
 
     //! Invokes metrics calculation with the given arguments.
