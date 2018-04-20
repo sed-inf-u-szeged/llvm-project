@@ -56,8 +56,11 @@ public:
     // Operation to do when merging to parent.
     enum oper_t : unsigned char
     {
+      // No operation will be performed.
+      NO_OP,
+
       // The TLOC/TLLOC of this node will be added to the parent's LOC/LLOC/TLOC/TLLOC.
-      LOC_METHOD,
+      LOC_MERGE,
 
       // The LOC/LLOC of this node will be subtracted from the parent's LOC/LLOC.
       LOC_SUBTRACT
@@ -74,6 +77,7 @@ public:
     {
       FUNCTION,
       CLASS,
+      INTERFACE,
       ENUM,
       NAMESPACE
     } kind;
@@ -120,6 +124,7 @@ private:
   typedef std::set<Range, RangeComparator>          rangeset_t;
 
   typedef std::unordered_map<Object, std::set<const Range*, RangePtrComparator>, ObjectHasher, ObjectEq> objectmap_t;
+  typedef std::unordered_map<const Range*, const Object*> rangemap_t;
 
 public:
   // Adds a declaration, creating a UID and a range for it, and mapping the two togather.
@@ -131,6 +136,12 @@ public:
   // Aggregates metrics into the output.
   // This is the final step of the calculation, called after all files have been processed.
   void aggregate(Output& output) const;
+
+  // Calculates LLOC between two lines.
+  unsigned calculateLLOC(const std::string& filename, unsigned lineBegin, unsigned lineEnd)
+  {
+    return calculateLLOC(fileid(filename), lineBegin, lineEnd);
+  }
 
   // Prints debug information for ranges.
   void debugPrintObjectRanges(std::ostream& os) const;
@@ -165,6 +176,9 @@ private:
   // Returns whether range outer contains range inner.
   static bool containsRange(const Range& outer, const Range& inner);
 
+  // Calculates LLOC between two lines.
+  unsigned calculateLLOC(unsigned fileID, unsigned lineBegin, unsigned lineEnd) const;
+
 private:
   // Invalid range. Returned by createRange() when the input is not valid.
   static const Range INVALID_RANGE;
@@ -188,168 +202,181 @@ private:
 
   // Maps ranges to specific declarations, identified by their UID.
   objectmap_t myObjects;
+
+  // Maps objects to the range of the object.
+  rangemap_t myRangeMap;
 };
 
 
 class ClangMetrics {
-  private:
-    struct Comparator
+private:
+  struct Comparator
+  {
+    bool operator()(std::tuple<clang::FileID, unsigned, unsigned> a, std::tuple<clang::FileID, unsigned, unsigned> b) const
     {
-      bool operator()(std::tuple<clang::FileID, unsigned, unsigned> a, std::tuple<clang::FileID, unsigned, unsigned> b) const
-      {
-        if (std::get<0>(a) < std::get<0>(b))
-          return true;
+      if (std::get<0>(a) < std::get<0>(b))
+        return true;
 
-        if (std::get<1>(a) < std::get<1>(b))
-          return true;
+      if (std::get<1>(a) < std::get<1>(b))
+        return true;
 
-        if (std::get<1>(a) > std::get<1>(b))
-          return false;
+      if (std::get<1>(a) > std::get<1>(b))
+        return false;
 
-        return std::get<2>(a) < std::get<2>(b);
-      }
-    };
-
-    struct FileIDHasher
-    {
-      size_t operator()(const FileID& id) const
-      {
-        return id.getHashValue();
-      }
-    };
-
-  public:
-    //! Constructor.
-    //!  \param output reference to the Output object where the results will be stored
-    //!  \param context the AST context
-    ClangMetrics(Output& output, GlobalMergeData& data, ASTContext& context) :
-      rMyOutput(output),
-      rMyGMD(data),
-      myCurrentTU(""),
-      pMyASTContext(&context)
-    {
-      rMyGMD.setAnalyzer(this);
+      return std::get<2>(a) < std::get<2>(b);
     }
+  };
 
-    //! Constructor.
-    //!  \param output reference to the Output object where the results will be stored
-    ClangMetrics(Output& output, GlobalMergeData& data) :
-      rMyOutput(output),
-      rMyGMD(data),
-      myCurrentTU(""),
-      pMyASTContext(nullptr)
+  struct FileIDHasher
+  {
+    size_t operator()(const FileID& id) const
     {
-      rMyGMD.setAnalyzer(this);
+      return id.getHashValue();
     }
+  };
 
-    //! If set to true, debug information will be printed to the standard output after
-    //! each source operation. Default value is false.
-    void debugPrintHalsteadAfterVisit(bool value) noexcept
-    {
-      myDebugPrintAfterVisit = value;
-    }
+public:
+  //! Constructor.
+  //!  \param output reference to the Output object where the results will be stored
+  //!  \param context the AST context
+  ClangMetrics(Output& output, GlobalMergeData& data, ASTContext& context) :
+    rMyOutput(output),
+    rMyGMD(data),
+    myCurrentTU(""),
+    pMyASTContext(&context)
+  {
+    rMyGMD.setAnalyzer(this);
+  }
 
-    // Aggregate the the metrics and merge the results into the output.
-    void aggregateMetrics();
+  //! Constructor.
+  //!  \param output reference to the Output object where the results will be stored
+  ClangMetrics(Output& output, GlobalMergeData& data) :
+    rMyOutput(output),
+    rMyGMD(data),
+    myCurrentTU(""),
+    pMyASTContext(nullptr)
+  {
+    rMyGMD.setAnalyzer(this);
+  }
 
-    // Update the current AST context.
-    void updateASTContext(ASTContext& context)
-    {
-      pMyASTContext = &context;
-    }
+  //! If set to true, debug information will be printed to the standard output after
+  //! each source operation. Default value is false.
+  void debugPrintHalsteadAfterVisit(bool value) noexcept
+  {
+    myDebugPrintAfterVisit = value;
+  }
 
-    // Update the current compilation unit file
-    void updateCurrentTU(StringRef currentTU)
-    {
-      myCurrentTU = currentTU;
-    }
+  // Aggregate the the metrics and merge the results into the output.
+  void aggregateMetrics();
 
-    // Returns a pointer to the actual AST context
-    ASTContext* getASTContext() const
-    {
-      return pMyASTContext;
-    }
+  // Update the current AST context.
+  void updateASTContext(ASTContext& context)
+  {
+    pMyASTContext = &context;
+  }
 
-    // Returns a reference to the UID factory.
-    UIDFactory& getUIDFactory() const
-    {
-      return rMyOutput.getFactory();
-    }
+  // Update the current compilation unit file
+  void updateCurrentTU(StringRef currentTU)
+  {
+    myCurrentTU = currentTU;
+  }
 
-    // Class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
-    // See the Clang documentation for more info.
-    class NodeVisitor;
+  // Returns a pointer to the actual AST context
+  ASTContext* getASTContext() const
+  {
+    return pMyASTContext;
+  }
 
-  protected:
-    // Stores the output.
-    Output& rMyOutput;
+  // Returns a reference to the UID factory.
+  UIDFactory& getUIDFactory() const
+  {
+    return rMyOutput.getFactory();
+  }
 
-    // The name of the file of the current translation unit.
-    std::string myCurrentTU;
+  // Class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
+  // See the Clang documentation for more info.
+  class NodeVisitor;
 
-  private:
-    // Reference to the global state.
-    GlobalMergeData& rMyGMD;
+protected:
+  // Stores the output.
+  Output& rMyOutput;
 
-    // The AST context.
-    ASTContext* pMyASTContext;
+  // The name of the file of the current translation unit.
+  std::string myCurrentTU;
 
-    // Print debug info?
-    bool myDebugPrintAfterVisit = false;
+private:
+  struct FunctionMetricsData
+  {
+    // McCabe's complexity for the function.
+    unsigned McCC = 1;
 
-    // Contains all the classes in the program.
-    std::unordered_set<const clang::Decl*> myClasses;
+    // Storage for Halstead operators and operands.
+    HalsteadStorage hsStorage;
+  };
 
-    // Contains all the methods and functions in the program.
-    std::unordered_set<const clang::DeclContext*> myFunctions;
+private:
+  // Reference to the global state.
+  GlobalMergeData& rMyGMD;
 
-    // Contains all the enums (including C++ 11 strongly typed enums) in the program.
-    std::unordered_set<const clang::EnumDecl*> myEnums;
+  // The AST context.
+  ASTContext* pMyASTContext;
 
-    // Contains all the namespaces in the program.
-    std::unordered_set<const clang::NamespaceDecl*> myNamespaces;
+  // Print debug info?
+  bool myDebugPrintAfterVisit = false;
 
-    // Maps classes/structs/unions defined within functions to the functions.
-    // If a function has no "inside" classes/structs/unions, it won't be found in this map.
-    std::unordered_map<const clang::DeclContext*, std::unordered_set<const clang::Decl*>> myInsideClassesByFunctions;
+  // Contains function metrics calculated per TU.
+  std::unordered_map<const clang::DeclContext*, FunctionMetricsData> myFunctionMetrics;
 
-    // Maps McCC to functions. If a function has an McCC of 1, it won't be found in this map.
-    // Note that the values stored here are one less than the final McCC.
-    std::unordered_map<const clang::DeclContext*, unsigned> myMcCCByFunctions;
+  /*// Contains all the classes in the program.
+  std::unordered_set<const clang::Decl*> myClasses;
 
-    // Halstead operators (first) and operands (second) by functions.
-    std::unordered_map<const clang::DeclContext*, HalsteadStorage> myHalsteadByFunctions;
+  // Contains all the methods and functions in the program.
+  std::unordered_set<const clang::DeclContext*> myFunctions;
 
-    // Maps inner classes to their "outside" class.
-    // If the class has no inner classes, it won't be found in this map.
-    std::unordered_map<const clang::Decl*, std::unordered_set<const clang::Decl*>> myInnerClassesByClasses;
+  // Contains all the enums (including C++ 11 strongly typed enums) in the program.
+  std::unordered_set<const clang::EnumDecl*> myEnums;
 
-    // Maps ObjC Interfaces by Implementation.
-    std::unordered_map<const clang::ObjCContainerDecl*, const clang::ObjCContainerDecl*> myObjCInterfaceByImplementations;
+  // Contains all the namespaces in the program.
+  std::unordered_set<const clang::NamespaceDecl*> myNamespaces;
 
-    // Maps methods to their class.
-    // If the class has no methods, it won't be found in this map.
-    std::unordered_map<const clang::Decl*, std::unordered_set<const clang::Decl*>> myMethodsByClasses;
+  // Maps classes/structs/unions defined within functions to the functions.
+  // If a function has no "inside" classes/structs/unions, it won't be found in this map.
+  std::unordered_map<const clang::DeclContext*, std::unordered_set<const clang::Decl*>> myInsideClassesByFunctions;
 
-    // Maps namespaces inside another namespace to this "outside" namespace.
-    // If the namespace has no inner namespaces, it won't be found in this map.
-    std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::NamespaceDecl*>> myInnerNamespacesByNamespaces;
+  // Maps McCC to functions. If a function has an McCC of 1, it won't be found in this map.
+  // Note that the values stored here are one less than the final McCC.
+  //std::unordered_map<const clang::DeclContext*, unsigned> myMcCCByFunctions;
 
-    // Maps classes/structs/unions to their namespace. If a class/struct/union is in the global namespace, it won't be found in this map.
-    std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::Decl*>> myClassesByNamespaces;
+  // Halstead operators (first) and operands (second) by functions.
+  //std::unordered_map<const clang::DeclContext*, HalsteadStorage> myHalsteadByFunctions;
 
-    // Maps enums (including C++ 11 strongly typed enums) to their namespace. If an enum is in the global namespace, it won't be found in this map.
-    std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::EnumDecl*>> myEnumsByNamespaces;
+  // Maps inner classes to their "outside" class.
+  // If the class has no inner classes, it won't be found in this map.
+  std::unordered_map<const clang::Decl*, std::unordered_set<const clang::Decl*>> myInnerClassesByClasses;
 
-    // Stores line numbers where there is sure to be code.
-    std::set<std::pair<clang::FileID, unsigned>> myCodeLines;
+  // Maps ObjC Interfaces by Implementation.
+  std::unordered_map<const clang::ObjCContainerDecl*, const clang::ObjCContainerDecl*> myObjCInterfaceByImplementations;
 
-    // Stores locations where there are semicolons. A single record is a pair of row/column within the file.
-    std::set<std::tuple<clang::FileID, unsigned, unsigned>, Comparator> mySemicolonLocations;
+  // Maps methods to their class.
+  // If the class has no methods, it won't be found in this map.
+  std::unordered_map<const clang::Decl*, std::unordered_set<const clang::Decl*>> myMethodsByClasses;
 
-    // McCC per file. If a file has an McCC of 1, it won't be found in this map.
-    // Note that the values stored here are one less than the final McCC.
-    std::unordered_map<FileID, unsigned, FileIDHasher> myMcCCByFiles;
+  // Maps namespaces inside another namespace to this "outside" namespace.
+  // If the namespace has no inner namespaces, it won't be found in this map.
+  std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::NamespaceDecl*>> myInnerNamespacesByNamespaces;
+
+  // Maps classes/structs/unions to their namespace. If a class/struct/union is in the global namespace, it won't be found in this map.
+  std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::Decl*>> myClassesByNamespaces;
+
+  // Maps enums (including C++ 11 strongly typed enums) to their namespace. If an enum is in the global namespace, it won't be found in this map.
+  std::unordered_map<const clang::NamespaceDecl*, std::unordered_set<const clang::EnumDecl*>> myEnumsByNamespaces;*/
+
+  // Stores locations where there are semicolons. A single record is a pair of row/column within the file.
+  std::set<std::tuple<clang::FileID, unsigned, unsigned>, Comparator> mySemicolonLocations;
+
+  // McCC per file. If a file has an McCC of 1, it won't be found in this map.
+  // Note that the values stored here are one less than the final McCC.
+  std::unordered_map<FileID, unsigned, FileIDHasher> myMcCCByFiles;
 };
 
 } // namespace detail

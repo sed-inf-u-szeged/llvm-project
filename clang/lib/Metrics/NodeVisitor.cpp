@@ -16,7 +16,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* decl)
   // Calculating Halstead for functions only.
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add the declarator (class, struct or union) as operator.
     if (decl->isClass())
@@ -31,48 +31,12 @@ bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl* decl)
       hs.add<Halstead::ValueDeclOperand>(decl);
   }
 
-  // Add the current node.
-  rMyMetrics.myClasses.insert(decl);
-
-  // If this class has an "outer class" (so this is an inner class), we add this class to the list of
-  // inner classes of the outer class.
-  if (const CXXRecordDecl* outerClass = dyn_cast_or_null<CXXRecordDecl>(decl->getParent()))
-  {
-    // If this is indeed a class and not a namespace, we add this class as an inner class.
-    if (CXXRecordDecl::classofKind(outerClass->getKind()))
-      rMyMetrics.myInnerClassesByClasses[outerClass].insert(decl);
-  }
-
-  // Check if this class was defined within a function.
-  if (const DeclContext* function = decl->getParentFunctionOrMethod())
-  {
-    if (function->isFunctionOrMethod())
-    {
-      rMyMetrics.myInsideClassesByFunctions[function].insert(decl);
-    }
-  }
-
-  // Get the namespace of the class (unless it's the global namespace - no need to store that).
-  const DeclContext* parent = decl;
-  while (parent = parent->getParent())
-  {
-    // Store the class by its namespace, then break the loop (no need to look further).
-    if (NamespaceDecl::classofKind(parent->getDeclKind()))
-    {
-      rMyMetrics.myClassesByNamespaces[cast<NamespaceDecl>(parent)].insert(decl);
-      break;
-    }
-  }
-
   return true;
 }
 
 bool ClangMetrics::NodeVisitor::VisitFunctionDecl(const FunctionDecl* decl)
 {
-  // Add the current node.
-  rMyMetrics.myFunctions.insert(decl);
-
-  HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[decl];
+  HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[decl].hsStorage;
   handleFunctionRelatedHalsteadStuff(hs, decl);
 
   return true;
@@ -83,7 +47,7 @@ bool ClangMetrics::NodeVisitor::VisitFunctionTemplateDecl(const clang::FunctionT
   if (FunctionDecl* templated = decl->getTemplatedDecl())
   {
     // Add template keyword (operator).
-    rMyMetrics.myHalsteadByFunctions[templated].add<Halstead::TemplateOperator>();
+    rMyMetrics.myFunctionMetrics[templated].hsStorage.add<Halstead::TemplateOperator>();
   }
 
   return true;
@@ -93,7 +57,7 @@ bool ClangMetrics::NodeVisitor::VisitTemplateTypeParmDecl(const clang::TemplateT
 {
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add typename or class keyword (operator).
     if (decl->wasDeclaredWithTypename())
@@ -128,7 +92,7 @@ bool ClangMetrics::NodeVisitor::VisitNonTypeTemplateParmDecl(const clang::NonTyp
   // Only handle default arguments here. Everything else is done in VisitValueDecl().
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // If the decl has a default argument, we add the equal sign (operator).
     // The type and init value are already handled by VisitValueDecl().
@@ -150,7 +114,7 @@ bool ClangMetrics::NodeVisitor::VisitTemplateTemplateParmDecl(const clang::Templ
 {
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add the inner 'template' keyword of the template template parameter.
     hs.add<Halstead::TemplateOperator>();
@@ -184,15 +148,8 @@ bool ClangMetrics::NodeVisitor::VisitCXXMethodDecl(const CXXMethodDecl* decl)
 {
   // No need to add the current node - it will be done by VisitFunctionDecl() anyway.
 
-  // Get the class in which the method is defined.
-  if (const CXXRecordDecl* parentClass = decl->getParent())
-  {
-    // Add this method to the set of methods in that class.
-    rMyMetrics.myMethodsByClasses[parentClass].insert(decl);
-  }
-
   // Forward to the method handler.
-  HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[decl];
+  HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[decl].hsStorage;
   handleMethodRelatedHalsteadStuff(hs, decl);
 
   return true;
@@ -200,24 +157,10 @@ bool ClangMetrics::NodeVisitor::VisitCXXMethodDecl(const CXXMethodDecl* decl)
 
 bool ClangMetrics::NodeVisitor::VisitEnumDecl(const EnumDecl* decl)
 {
-  rMyMetrics.myEnums.insert(decl);
-
-  // Get the namespace of the enum (unless it's the global namespace - no need to store that).
-  const DeclContext* parent = decl;
-  while (parent = parent->getParent())
-  {
-    // Store the enum by its namespace, then break the loop (no need to look further).
-    if (NamespaceDecl::classofKind(parent->getDeclKind()))
-    {
-      rMyMetrics.myEnumsByNamespaces[cast<NamespaceDecl>(parent)].insert(decl);
-      break;
-    }
-  }
-
   // Halstead stuff:
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add 'enum' keyword (operator).
     hs.add<Halstead::EnumOperator>();
@@ -243,27 +186,12 @@ bool ClangMetrics::NodeVisitor::VisitEnumDecl(const EnumDecl* decl)
   return true;
 }
 
-bool ClangMetrics::NodeVisitor::VisitNamespaceDecl(const NamespaceDecl* decl)
-{
-  // Add the current node.
-  rMyMetrics.myNamespaces.insert(decl);
-
-  // Check if this is an inner namespace.
-  if (const DeclContext* p = decl->getParent())
-  {
-    if (NamespaceDecl::classofKind(p->getDeclKind()))
-      rMyMetrics.myInnerNamespacesByNamespaces[cast<NamespaceDecl>(p)].insert(decl);
-  }
-
-  return true;
-}
-
 bool ClangMetrics::NodeVisitor::VisitValueDecl(const ValueDecl* decl)
 {
   // Get function in which this decl is declared in.
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Handle CXXMethodDecl bug (?). For local classes, methods will be identified as ValueDecls at first.
     if (CXXMethodDecl::classof(decl))
@@ -313,7 +241,7 @@ bool ClangMetrics::NodeVisitor::VisitVarDecl(const clang::VarDecl* decl)
       switch (decl->getInitStyle())
       {
       case VarDecl::InitializationStyle::CInit:
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::OperatorOperator>(BinaryOperatorKind::BO_Assign);
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::OperatorOperator>(BinaryOperatorKind::BO_Assign);
         break;
 
       case VarDecl::InitializationStyle::CallInit:
@@ -326,18 +254,18 @@ bool ClangMetrics::NodeVisitor::VisitVarDecl(const clang::VarDecl* decl)
             // Get the parentheses range in the source code. Only add the Halstead operator if it's not invalid.
             SourceRange range = cast<CXXConstructExpr>(init)->getParenOrBraceRange();
             if (range.isValid())
-              rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ParenthesesInitSyntaxOperator>();
+              rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ParenthesesInitSyntaxOperator>();
           }
           else
           {
             // If it's not a constructor there's no such problem - the parentheses must be there.
-            rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ParenthesesInitSyntaxOperator>();
+            rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ParenthesesInitSyntaxOperator>();
           }
         }
         break;
 
       case VarDecl::InitializationStyle::ListInit:
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::BracesInitSyntaxOperator>();
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::BracesInitSyntaxOperator>();
         break;
       }
     }
@@ -348,7 +276,7 @@ bool ClangMetrics::NodeVisitor::VisitVarDecl(const clang::VarDecl* decl)
   if (decl->isStaticLocal())
   {
     if (const DeclContext* f = decl->getParentFunctionOrMethod())
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::StaticOperator>();
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::StaticOperator>();
   }
 
   return true;
@@ -366,11 +294,11 @@ bool ClangMetrics::NodeVisitor::VisitFieldDecl(const clang::FieldDecl* decl)
       switch (decl->getInClassInitStyle())
       {
       case InClassInitStyle::ICIS_CopyInit:
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::OperatorOperator>(BinaryOperatorKind::BO_Assign);
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::OperatorOperator>(BinaryOperatorKind::BO_Assign);
         break;
 
       case InClassInitStyle::ICIS_ListInit:
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::BracesInitSyntaxOperator>();
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::BracesInitSyntaxOperator>();
         break;
       }
     }
@@ -379,7 +307,7 @@ bool ClangMetrics::NodeVisitor::VisitFieldDecl(const clang::FieldDecl* decl)
   if (decl->isMutable())
   {
     if (const DeclContext* f = decl->getParentFunctionOrMethod())
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::MutableOperator>();
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::MutableOperator>();
   }
 
   return true;
@@ -389,7 +317,7 @@ bool ClangMetrics::NodeVisitor::VisitAccessSpecDecl(const clang::AccessSpecDecl*
 {
   // Get function in which this decl is declared in.
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::AccessSpecDeclOperator>(decl);
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::AccessSpecDeclOperator>(decl);
 
   return true;
 }
@@ -399,7 +327,7 @@ bool ClangMetrics::NodeVisitor::VisitUsingDecl(const clang::UsingDecl* decl)
   // Get function in which this decl is declared in.
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add using keyword (operator).
     hs.add<Halstead::UsingOperator>();
@@ -417,7 +345,7 @@ bool ClangMetrics::NodeVisitor::VisitUsingDirectiveDecl(const clang::UsingDirect
   // Get function in which this decl is declared in.
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add using keyword (operator).
     hs.add<Halstead::UsingOperator>();
@@ -438,7 +366,7 @@ bool ClangMetrics::NodeVisitor::VisitNamespaceAliasDecl(const clang::NamespaceAl
 {
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add namespace keyword (operator).
     hs.add<Halstead::NamespaceOperator>();
@@ -465,7 +393,7 @@ bool ClangMetrics::NodeVisitor::VisitTypeAliasDecl(const clang::TypeAliasDecl* d
   // Get function in which this decl is declared in
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add using keyword (operator).
     hs.add<Halstead::UsingOperator>();
@@ -492,7 +420,7 @@ bool ClangMetrics::NodeVisitor::VisitTypedefDecl(const clang::TypedefDecl* decl)
   // Get function in which this decl is declared in
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add typedef keyword (operator).
     hs.add<Halstead::TypedefOperator>();
@@ -512,7 +440,7 @@ bool ClangMetrics::NodeVisitor::VisitFriendDecl(const clang::FriendDecl* decl)
 {
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add 'friend' keyword (operator).
     hs.add<Halstead::FriendOperator>();
@@ -541,39 +469,10 @@ bool ClangMetrics::NodeVisitor::VisitFriendDecl(const clang::FriendDecl* decl)
   return true;
 }
 
-bool ClangMetrics::NodeVisitor::VisitObjCInterfaceDecl(const ObjCInterfaceDecl* decl)
-{
-  rMyMetrics.myClasses.insert(decl);
-  // Later used when adding functions from the Implementation to the class.
-  if(const ObjCImplementationDecl* imp = decl->getImplementation())
-  {
-    rMyMetrics.myObjCInterfaceByImplementations[imp] = decl;
-  }
-  return true;
-}
-
 bool ClangMetrics::NodeVisitor::VisitObjCMethodDecl(const clang::ObjCMethodDecl* decl)
 {
-  // Adding methods to the class that do not have their implementation defined in the ObjCImplementationDecl.
-  if (!decl->isDefined())
-  {
-    if (const DeclContext* dc = decl->getParent())
-      rMyMetrics.myMethodsByClasses[cast<ObjCContainerDecl>(dc)].insert(decl);
-  }
-  else if (const ObjCCategoryDecl* parentContainer = dyn_cast_or_null<ObjCCategoryDecl>(decl->getParent()))
-  {
-    // Defined methods are added to the class at their definition however class extension's method definitions belong to the class it extends
-    // so they must be added to the class extension at the declaration.
-    if (parentContainer->IsClassExtension())
-    {
-      rMyMetrics.myMethodsByClasses[cast<ObjCContainerDecl>(parentContainer)].insert(decl);
-    }
-  }
-
   // Add the current node.
-  rMyMetrics.myFunctions.insert(decl);
-
-  HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[decl];
+  HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[decl].hsStorage;
 
   // Handle the return type operator.
   handleQualType(hs, decl->getReturnType(), true);
@@ -586,40 +485,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCMethodDecl(const clang::ObjCMethodDecl*
     hs.add<Halstead::ObjCClassMethodOperator>();
   else
     hs.add<Halstead::ObjCInstanceMethodOperator>();
-
-  if (!decl->hasBody())
-  {
-    return true;
-  }
-
-  // Add this method to the set of methods in that class
-  const ObjCContainerDecl* parentContainer = cast<ObjCContainerDecl>(decl->getParent());
-
-  // Get the interface to add the method to it
-  const  ObjCContainerDecl* parentInterface = rMyMetrics.myObjCInterfaceByImplementations[parentContainer];
-  
-  if(parentInterface)
-  {
-    rMyMetrics.myMethodsByClasses[parentInterface].insert(decl);
-  }
     
-  return true;
-}
-
-bool ClangMetrics::NodeVisitor::VisitObjCCategoryDecl(const clang::ObjCCategoryDecl* decl)
-{
-  rMyMetrics.myClasses.insert(decl);
-  // Later used when adding functions from the Implementation to the class.
-  if (const ObjCCategoryImplDecl* imp = decl->getImplementation())
-  {
-    rMyMetrics.myObjCInterfaceByImplementations[imp] = decl;
-  }
-  return true;
-}
-
-bool ClangMetrics::NodeVisitor::VisitObjCProtocolDecl(const ObjCProtocolDecl* decl)
-{
-  rMyMetrics.myClasses.insert(decl);
   return true;
 }
 
@@ -633,15 +499,8 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
   rMyMetrics.rMyGMD.addCodeLine(decl->getLocation());
   rMyMetrics.rMyGMD.addCodeLine(decl->getLocEnd());
 
-  // Add starting, actual and ending line numbers to set.
-  // These are the only places where the decl is sure to contain code.
-  const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
-  FileID file = sm.getFileID(decl->getLocation());
-  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(decl->getLocStart()));
-  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(decl->getLocation()));
-  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(decl->getLocEnd()));
-
   // Handle semicolons.
+  const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
   SourceLocation semiloc = findSemiAfterLocation(decl->getLocEnd(), rMyMetrics.getASTContext(), false);
 
   if (dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()) || dyn_cast_or_null<ObjCMethodDecl>(decl->getParentFunctionOrMethod()) )
@@ -658,14 +517,8 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
   rMyMetrics.rMyGMD.addCodeLine(stmt->getLocStart());
   rMyMetrics.rMyGMD.addCodeLine(stmt->getLocEnd());
 
-  // Add starting and ending line numbers to set.
-  // These are the only places where the statement is sure to contain code.
-  const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
-  FileID file = sm.getFileID(stmt->getLocStart());
-  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(stmt->getLocStart()));
-  rMyMetrics.myCodeLines.emplace(file, sm.getExpansionLineNumber(stmt->getLocEnd()));
-
   // Handle semicolons.
+  const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
   SourceLocation semiloc = findSemiAfterLocation(stmt->getLocEnd(), rMyMetrics.getASTContext(), false);
   handleSemicolon(sm, getFunctionContextFromStmt(*stmt), semiloc);
   return true;
@@ -675,7 +528,7 @@ bool ClangMetrics::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     if (stmt->isSingleDecl())
     {
@@ -733,7 +586,7 @@ bool ClangMetrics::NodeVisitor::VisitIfStmt(const clang::IfStmt* stmt)
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::IfOperator>();
 
     if (stmt->getElse())
@@ -748,7 +601,7 @@ bool ClangMetrics::NodeVisitor::VisitForStmt(const clang::ForStmt* stmt)
   increaseMcCCStmt(stmt);
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ForOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ForOperator>();
 
   return true;
 }
@@ -758,7 +611,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXForRangeStmt(const clang::CXXForRangeStm
   increaseMcCCStmt(stmt);
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ForOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ForOperator>();
 
   return true;
 }
@@ -768,7 +621,7 @@ bool ClangMetrics::NodeVisitor::VisitWhileStmt(const clang::WhileStmt* stmt)
   increaseMcCCStmt(stmt);
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::WhileOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::WhileOperator>();
 
   return true;
 }
@@ -779,7 +632,7 @@ bool ClangMetrics::NodeVisitor::VisitDoStmt(const clang::DoStmt* stmt)
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::DoOperator>();
     hs.add<Halstead::WhileOperator>();
   }
@@ -790,7 +643,7 @@ bool ClangMetrics::NodeVisitor::VisitDoStmt(const clang::DoStmt* stmt)
 bool ClangMetrics::NodeVisitor::VisitSwitchStmt(const clang::SwitchStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::SwitchOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::SwitchOperator>();
 
   return true;
 }
@@ -800,7 +653,7 @@ bool ClangMetrics::NodeVisitor::VisitCaseStmt(const clang::CaseStmt* stmt)
   increaseMcCCStmt(stmt);
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::CaseOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::CaseOperator>();
 
   return true;
 }
@@ -808,7 +661,7 @@ bool ClangMetrics::NodeVisitor::VisitCaseStmt(const clang::CaseStmt* stmt)
 bool ClangMetrics::NodeVisitor::VisitDefaultStmt(const clang::DefaultStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::DefaultCaseOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::DefaultCaseOperator>();
 
   return true;
 }
@@ -816,7 +669,7 @@ bool ClangMetrics::NodeVisitor::VisitDefaultStmt(const clang::DefaultStmt* stmt)
 bool ClangMetrics::NodeVisitor::VisitBreakStmt(const clang::BreakStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::BreakOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::BreakOperator>();
 
   return true;
 }
@@ -824,7 +677,7 @@ bool ClangMetrics::NodeVisitor::VisitBreakStmt(const clang::BreakStmt* stmt)
 bool ClangMetrics::NodeVisitor::VisitContinueStmt(const clang::ContinueStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ContinueOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ContinueOperator>();
 
   return true;
 }
@@ -834,7 +687,7 @@ bool ClangMetrics::NodeVisitor::VisitLabelStmt(const clang::LabelStmt* stmt)
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     if (const LabelDecl* d = stmt->getDecl())
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::LabelDeclOperand>(d);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::LabelDeclOperand>(d);
   }
 
   return true;
@@ -844,7 +697,7 @@ bool ClangMetrics::NodeVisitor::VisitGotoStmt(const clang::GotoStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add goto keyword (operator).
     hs.add<Halstead::GotoOperator>();
@@ -860,7 +713,7 @@ bool ClangMetrics::NodeVisitor::VisitGotoStmt(const clang::GotoStmt* stmt)
 bool ClangMetrics::NodeVisitor::VisitCXXTryStmt(const clang::CXXTryStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::TryOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::TryOperator>();
 
   return true;
 }
@@ -869,7 +722,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCBridgedCastExpr(const clang::ObjCBridge
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::BridgedCastOperator>();
     handleQualType(hs, stmt->getTypeAsWritten(), true);
   }
@@ -881,7 +734,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCBoxedExpr(const clang::ObjCBoxedExpr* s
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::ObjCBoxedOperator>();
   }
 
@@ -891,7 +744,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCBoxedExpr(const clang::ObjCBoxedExpr* s
 bool ClangMetrics::NodeVisitor::VisitObjCAtTryStmt(const clang::ObjCAtTryStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::TryOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::TryOperator>();
 
   return true;
 }
@@ -899,7 +752,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCAtTryStmt(const clang::ObjCAtTryStmt* s
 bool ClangMetrics::NodeVisitor::VisitObjCAtFinallyStmt(const clang::ObjCAtFinallyStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::FinallyOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::FinallyOperator>();
 
   return true;
 }
@@ -909,7 +762,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXCatchStmt(const clang::CXXCatchStmt* stm
   increaseMcCCStmt(stmt);
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::CatchOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::CatchOperator>();
 
   return true;
 }
@@ -919,7 +772,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCAtCatchStmt(const clang::ObjCAtCatchStm
   increaseMcCCStmt(stmt);
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::CatchOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::CatchOperator>();
 
   return true;
 }
@@ -927,7 +780,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCAtCatchStmt(const clang::ObjCAtCatchStm
 bool ClangMetrics::NodeVisitor::VisitCXXThrowExpr(const clang::CXXThrowExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ThrowOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThrowOperator>();
 
   return true;
 }
@@ -935,7 +788,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXThrowExpr(const clang::CXXThrowExpr* stm
 bool ClangMetrics::NodeVisitor::VisitObjCAtThrowStmt(const clang::ObjCAtThrowStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ThrowOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThrowOperator>();
 
   return true;
 }
@@ -943,7 +796,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCAtThrowStmt(const clang::ObjCAtThrowStm
 bool ClangMetrics::NodeVisitor::VisitReturnStmt(const clang::ReturnStmt* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ReturnOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ReturnOperator>();
 
   return true;
 }
@@ -962,9 +815,9 @@ bool ClangMetrics::NodeVisitor::VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrT
     {
       // Increase operator count of said function.
       if (stmt->getKind() == UnaryExprOrTypeTrait::UETT_AlignOf)
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::AlignofOperator>();
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::AlignofOperator>();
       else
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::SizeofOperator>();
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::SizeofOperator>();
     }
   }
 
@@ -981,7 +834,7 @@ bool ClangMetrics::NodeVisitor::VisitDeclRefExpr(const DeclRefExpr* stmt)
     if (const ValueDecl* decl = stmt->getDecl())
     {
       if (!FunctionDecl::classof(decl))
-        rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ValueDeclOperand>(decl);
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ValueDeclOperand>(decl);
     }
 
     // Add Halstead operators/operands if this is a nested name.
@@ -995,7 +848,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCAtSynchronizedStmt(const ObjCAtSynchron
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::ObjCSynchronizeOperator>();
   }
 
@@ -1011,7 +864,7 @@ bool ClangMetrics::NodeVisitor::VisitCallExpr(const clang::CallExpr* stmt)
 
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // If this is a call to an overloaded operator, we must hande it "syntactically" as if it was a built-in operator.
     // Clang only classifies "operator call expression" as such if the "traditional" infix syntax is used.
@@ -1054,7 +907,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXConstructExpr(const clang::CXXConstructE
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Iterate over the arguments.
     for (const Expr* arg : stmt->arguments())
@@ -1073,7 +926,7 @@ bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Functions are handled by VisitCallExpr(), because after declaration a function can also become
     // an operand if used as an argument to another function.
@@ -1103,7 +956,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXThisExpr(const clang::CXXThisExpr* stmt)
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     // Add this keyword.
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ThisExprOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThisExprOperator>();
   }
 
   return true;
@@ -1113,7 +966,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXNewExpr(const clang::CXXNewExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add new keyword (operator).
     hs.add<Halstead::NewExprOperator>();
@@ -1130,7 +983,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXNewExpr(const clang::CXXNewExpr* stmt)
 bool ClangMetrics::NodeVisitor::VisitCXXDeleteExpr(const clang::CXXDeleteExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::DeleteExprOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::DeleteExprOperator>();
 
   return true;
 }
@@ -1138,7 +991,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXDeleteExpr(const clang::CXXDeleteExpr* s
 bool ClangMetrics::NodeVisitor::VisitObjCEncodeExpr(const clang::ObjCEncodeExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::EncodeExprOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::EncodeExprOperator>();
 
   return true;
 }
@@ -1147,7 +1000,7 @@ bool ClangMetrics::NodeVisitor::VisitExplicitCastExpr(const clang::ExplicitCastE
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     
     // Add the cast operator itself based on its kind.
     if (CStyleCastExpr::classof(stmt))
@@ -1175,9 +1028,9 @@ bool ClangMetrics::NodeVisitor::VisitIntegerLiteral(const IntegerLiteral* stmt)
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     if (auto udl = searchForParent<UserDefinedLiteral>(stmt))
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
     else
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::IntegerLiteralOperand>(stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::IntegerLiteralOperand>(stmt);
   }
 
   return true;
@@ -1188,9 +1041,9 @@ bool ClangMetrics::NodeVisitor::VisitFloatingLiteral(const FloatingLiteral* stmt
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     if (auto udl = searchForParent<UserDefinedLiteral>(stmt))
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
     else
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::FloatingLiteralOperand>(stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::FloatingLiteralOperand>(stmt);
   }
 
   return true;
@@ -1201,9 +1054,9 @@ bool ClangMetrics::NodeVisitor::VisitCharacterLiteral(const CharacterLiteral* st
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     if (auto udl = searchForParent<UserDefinedLiteral>(stmt))
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
     else
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::CharacterLiteralOperand>(stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::CharacterLiteralOperand>(stmt);
   }
 
   return true;
@@ -1214,9 +1067,9 @@ bool ClangMetrics::NodeVisitor::VisitStringLiteral(const StringLiteral* stmt)
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     if (auto udl = searchForParent<UserDefinedLiteral>(stmt))
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::UserDefinedLiteralOperand>(udl, stmt);
     else
-      rMyMetrics.myHalsteadByFunctions[f].add<Halstead::StringLiteralOperand>(stmt);
+      rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::StringLiteralOperand>(stmt);
   }
 
   return true;
@@ -1225,7 +1078,7 @@ bool ClangMetrics::NodeVisitor::VisitStringLiteral(const StringLiteral* stmt)
 bool ClangMetrics::NodeVisitor::VisitObjCBoolLiteralExpr(const ObjCBoolLiteralExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::ObjCBoolLiteralOperand>(stmt);
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ObjCBoolLiteralOperand>(stmt);
 
   return true;
 }
@@ -1233,7 +1086,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCBoolLiteralExpr(const ObjCBoolLiteralEx
 bool ClangMetrics::NodeVisitor::VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::BoolLiteralOperand>(stmt);
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::BoolLiteralOperand>(stmt);
 
   return true;
 }
@@ -1241,7 +1094,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr
 bool ClangMetrics::NodeVisitor::VisitCXXNullPtrLiteralExpr(const CXXNullPtrLiteralExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::NullptrLiteralOperand>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::NullptrLiteralOperand>();
 
   return true;
 }
@@ -1250,7 +1103,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCMessageExpr(const clang::ObjCMessageExp
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
-    HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+    HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::ObjCMessageOperator>();
     hs.add<Halstead::MessageSelectorOperand>(stmt);
         
@@ -1265,7 +1118,7 @@ bool ClangMetrics::NodeVisitor::VisitObjCMessageExpr(const clang::ObjCMessageExp
 bool ClangMetrics::NodeVisitor::VisitBinaryOperator(const BinaryOperator* op)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*op))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::OperatorOperator>(op->getOpcode());
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::OperatorOperator>(op->getOpcode());
 
   // Increase McCC only if this is a logical and/or operator.
   if (op->getOpcode() == BinaryOperatorKind::BO_LAnd || op->getOpcode() == BinaryOperatorKind::BO_LOr)
@@ -1279,7 +1132,7 @@ bool ClangMetrics::NodeVisitor::VisitBinaryOperator(const BinaryOperator* op)
 bool ClangMetrics::NodeVisitor::VisitUnaryOperator(const clang::UnaryOperator* op)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*op))
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::OperatorOperator>(op->getOpcode());
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::OperatorOperator>(op->getOpcode());
 
   return true;
 }
@@ -1306,9 +1159,9 @@ void ClangMetrics::NodeVisitor::increaseMcCCStmt(const Stmt* stmt)
 
   // Check whether it's a function or not. Increase the McCC by one if it is.
   if (clang::ObjCMethodDecl::classof(parentDecl))
-    ++rMyMetrics.myMcCCByFunctions[cast<ObjCMethodDecl>(parentDecl)];
+    ++rMyMetrics.myFunctionMetrics[cast<ObjCMethodDecl>(parentDecl)].McCC;
   else if(clang::FunctionDecl::classof(parentDecl))
-    ++rMyMetrics.myMcCCByFunctions[cast<FunctionDecl>(parentDecl)];
+    ++rMyMetrics.myFunctionMetrics[cast<FunctionDecl>(parentDecl)].McCC;
 
 }
 
@@ -1393,18 +1246,18 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
 
   // Iterate over all functions and try to find the closest to the statement that contains the statement.
   const SourceRange stmtRange = stmt.getSourceRange();
-  for (const DeclContext* f : rMyMetrics.myFunctions)
+  for (auto& p : rMyMetrics.myFunctionMetrics)
   {
-    assert(f && "Only non-null values should be stored.");
+    assert(p.first && "Only non-null values should be stored.");
 
     SourceRange range;
-    if (clang::ObjCMethodDecl::classofKind(f->getDeclKind()))
+    if (clang::ObjCMethodDecl::classofKind(p.first->getDeclKind()))
     {
-      range = cast<ObjCMethodDecl>(f)->getSourceRange();
+      range = cast<ObjCMethodDecl>(p.first)->getSourceRange();
     }
-    else if(clang::FunctionDecl::classofKind(f->getDeclKind()))
+    else if(clang::FunctionDecl::classofKind(p.first->getDeclKind()))
     {
-      range = cast<FunctionDecl>(f)->getSourceRange();
+      range = cast<FunctionDecl>(p.first)->getSourceRange();
     }  
     
     // Is the statement within the function?
@@ -1416,7 +1269,7 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
       {
         // Update values.
         closestDistance = dist;
-        closestFunction = f;
+        closestFunction = p.first;
       }
     }
   }
@@ -1427,7 +1280,7 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
 
 void ClangMetrics::NodeVisitor::handleNestedName(const clang::DeclContext* f, const clang::NestedNameSpecifier* nns)
 {
-  HalsteadStorage& hs = rMyMetrics.myHalsteadByFunctions[f];
+  HalsteadStorage& hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
   while (nns)
   {
@@ -1713,7 +1566,7 @@ void ClangMetrics::NodeVisitor::handleSemicolon(const SourceManager& sm, const D
   auto it = rMyMetrics.mySemicolonLocations.find({ file, line, column });
   if (it == rMyMetrics.mySemicolonLocations.end())
   {
-    rMyMetrics.myHalsteadByFunctions[f].add<Halstead::SemicolonOperator>();
+    rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::SemicolonOperator>();
     rMyMetrics.mySemicolonLocations.emplace(file, line, column);
   }
 }

@@ -1,5 +1,5 @@
 #include "ClangMetrics.h"
-#include "LOCMeasure.h"
+
 #include <clang/Metrics/Output.h>
 #include <clang/Metrics/MetricsUtility.h>
 
@@ -14,245 +14,44 @@ void ClangMetrics::aggregateMetrics()
 {
   using namespace std;
 
-  rMyOutput.getFactory().onSourceOperationEnd(*pMyASTContext);
+  UIDFactory& factory = rMyOutput.getFactory();
+  factory.onSourceOperationEnd(*pMyASTContext);
 
-  // Helper for LOC calculation.
-  /*LOCMeasure me(pMyASTContext->getSourceManager(), myCodeLines);
     
   // Function metrics:
-  for (auto decl : myFunctions)
+  for (auto& met : myFunctionMetrics)
   {
-    FunctionMetrics m;
-    
-    LOCMeasure::LOC loc;
-    LOCMeasure::LOC tloc;
-    if (ObjCMethodDecl::classofKind(decl->getDeclKind()))
-    {
-      loc    = me.calculate(cast<ObjCMethodDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
-      tloc   = me.calculate(cast<ObjCMethodDecl>(decl));
-      m.name = cast<ObjCMethodDecl>(decl)->getNameAsString();
-    }
-    else if (FunctionDecl::classofKind(decl->getDeclKind()))
-    {
-      loc    = me.calculate(cast<FunctionDecl>(decl), LOCMeasure::ignore(myInsideClassesByFunctions));
-      tloc   = me.calculate(cast<FunctionDecl>(decl));
-      m.name = cast<FunctionDecl>(decl)->getNameAsString();
-    }
+    FunctionMetrics& m = rMyOutput.myFunctionMetrics[factory.create(cast<Decl>(met.first))];
 
-    m.LOC   = loc.total;
-    m.TLOC  = tloc.total;
-    m.LLOC  = loc.logical;
-    m.TLLOC = tloc.logical;
-      
-    auto it = myMcCCByFunctions.find(decl);
-    if (it != myMcCCByFunctions.end())
-      m.McCC = it->second + 1;
-    else
-      m.McCC = 1;
-
-    const HalsteadStorage& hs = myHalsteadByFunctions[decl];
-    m.H_Operators  = hs.getOperatorCount();
-    m.H_Operands   = hs.getOperandCount();
-    m.HD_Operators = hs.getDistinctOperatorCount();
-    m.HD_Operands  = hs.getDistinctOperandCount();
-
-    if (ObjCMethodDecl::classofKind(decl->getDeclKind()))
-    {
-      rMyOutput.mergeFunctionMetrics(cast<ObjCMethodDecl>(decl), m);
-    }
-    else if (FunctionDecl::classofKind(decl->getDeclKind()))
-    {
-      rMyOutput.mergeFunctionMetrics(cast<FunctionDecl>(decl), m);
-    }  
-  }
-
-  // Class metrics:
-  for (auto decl : myClasses)
-  {   
-    LOCMeasure::LOC loc;
-    LOCMeasure::LOC tloc;
-   
-    if (dyn_cast_or_null<ObjCContainerDecl>(decl))
-    {
-      tloc = me.calculate(decl);
-      loc = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
-    
-      // Interfaces and Categories have Implementation lines of code to include.
-      LOCMeasure::LOC imploc;
-      if (const ObjCInterfaceDecl* id = dyn_cast_or_null<ObjCInterfaceDecl>(decl))
-      {
-        if (const ObjCImplementationDecl* imp = id->getImplementation())
-        {
-          imploc = me.calculate(imp);
-
-          tloc.logical += imploc.logical;
-          tloc.total   += imploc.total;
-          loc.logical  += imploc.logical;
-          loc.total    += imploc.total;
-        }
-      }
-      else if (const ObjCCategoryDecl* id = dyn_cast_or_null<ObjCCategoryDecl>(decl))
-      {
-        if (!id->IsClassExtension())
-        {
-          if (const ObjCCategoryImplDecl* imp = id->getImplementation())
-          {
-            imploc = me.calculate(imp);
-
-            tloc.logical += imploc.logical;
-            tloc.total   += imploc.total;
-            loc.logical  += imploc.logical;
-            loc.total    += imploc.total;
-          }
-        }
-      }
-    }
-    else
-    {
-      tloc = me.calculate(decl,
-        LOCMeasure::ignore(myMethodsByClasses),
-        LOCMeasure::merge(myMethodsByClasses, false));
-      loc = me.calculate(decl,
-        LOCMeasure::ignore(myInnerClassesByClasses),
-        LOCMeasure::ignore(myMethodsByClasses),
-        LOCMeasure::merge(myMethodsByClasses, false));
-    }
-
-    // "Raw" metrics without methods.
-    auto tloc_raw = me.calculate(decl);
-    auto loc_raw = me.calculate(decl, LOCMeasure::ignore(myInnerClassesByClasses));
-
-    ClassMetrics m;
-    if (CXXRecordDecl::classofKind(decl->getKind()))
-      m.name = cast<CXXRecordDecl>(decl)->getNameAsString();
-    else if (ObjCInterfaceDecl::classofKind(decl->getKind()))
-      m.name = cast<ObjCInterfaceDecl>(decl)->getNameAsString();
-    else if (ObjCProtocolDecl::classofKind(decl->getKind()))
-      m.name = cast<ObjCProtocolDecl>(decl)->getNameAsString();
-    else if (const ObjCCategoryDecl* cd = dyn_cast_or_null<ObjCCategoryDecl>(decl))
-    {
-      if (cd->IsClassExtension())
-      {
-        if (const ObjCInterfaceDecl* intf = cd->getClassInterface())
-          m.name = "Ext:" + intf->getNameAsString();
-      }
-      else
-        m.name = cd->getNameAsString();
-    }    
-
-    m.LOC   = loc.total;
-    m.TLOC  = tloc.total;
-    m.LLOC  = loc.logical;
-    m.TLLOC = tloc.logical;
-
-    // Number of local methods - already stored as the size of the set of the corresponding decl
-    // in myMethodsByClasses.
-    {
-      auto it = myMethodsByClasses.find(decl);
-      if (it != myMethodsByClasses.end())
-        m.NLM = it->second.size();
-      else
-        m.NLM = 0;
-    }
-      
-    rMyOutput.mergeClassMetrics(decl, m, tloc_raw.total, tloc_raw.logical, loc_raw.total, loc_raw.logical);
-  }
-
-  // Enum metrics:
-  for (auto decl : myEnums)
-  {
-    auto loc = me.calculate(decl);
-
-    EnumMetrics m;
-    m.name = decl->getNameAsString();
-    m.LOC  = loc.total;
-    m.LLOC = loc.logical;
-
-    rMyOutput.mergeEnumMetrics(decl, m);
-  }
-
-  // Namespace metrics:
-  for (auto decl : myNamespaces)
-  {
-    auto tloc = me.calculate(decl);
-    auto loc = me.calculate(decl, LOCMeasure::ignore(myInnerNamespacesByNamespaces));
-
-    NamespaceMetrics m;
-    m.name  = decl->getNameAsString();
-    m.LOC   = loc.total;
-    m.TLOC  = tloc.total;
-    m.LLOC  = loc.logical;
-    m.TLLOC = tloc.logical;
-
-    // Number of classes and interfaces in the namespace - already stored in the set of the corresponding
-    // decl in myClassesByNamespaces.
-    {
-      auto it = myClassesByNamespaces.find(decl);
-      if (it != myClassesByNamespaces.end())
-      {
-        m.NCL = it->second.size();
-
-        // Iterate over the classes and count the interfaces
-        m.NIN = 0;
-        for (const Decl* d : it->second)
-        {
-          if (CXXRecordDecl::classof(decl))
-          {
-            if (isInterface(cast<CXXRecordDecl>(d)))
-              ++m.NIN;
-          }
-        }
-      }
-      else
-      {
-        m.NCL = 0;
-        m.NIN = 0;
-      }
-    }
-
-    // Number of enums in the namespace - already stored as the size of the set of the corresponding
-    // decl in myEnumsByNamespaces.
-    {
-      auto it = myEnumsByNamespaces.find(decl);
-      if (it != myEnumsByNamespaces.end())
-        m.NEN = it->second.size();
-      else
-        m.NEN = 0;
-    }
-
-    rMyOutput.mergeNamespaceMetrics(pMyASTContext->getSourceManager(), decl, m);
+    m.McCC = met.second.McCC;
+    m.H_Operators  = met.second.hsStorage.getOperatorCount();
+    m.H_Operands   = met.second.hsStorage.getOperandCount();
+    m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
+    m.HD_Operands  = met.second.hsStorage.getDistinctOperandCount();  
   }
 
   // File and TU metrics:
   {
-    struct
-    {
-      SourceManager* sm;
-      FileID fid;
-
-      SourceLocation getLocStart() const { return sm->getLocForStartOfFile(fid); }
-      SourceLocation getLocEnd() const { return sm->getLocForEndOfFile(fid); }
-    } helper;
-
     SourceManager& sm = pMyASTContext->getSourceManager();
-    helper.sm = &sm;
 
-    FileMetrics tum {};
+    FileMetrics& tum = rMyOutput.myTranslationUnitMetrics[myCurrentTU];
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
-      helper.fid = sm.translateFile(it->first);
+      // Get line numbers.
+      FileID fid = sm.translateFile(it->first);
+      unsigned lineBegin = sm.getExpansionLineNumber(sm.getLocForStartOfFile(fid));
+      unsigned lineEnd   = sm.getExpansionLineNumber(sm.getLocForEndOfFile(fid));
 
-      auto loc = me.calculate(&helper);
+      // Create metrics object.
+      FileMetrics& m = rMyOutput.myFileMetrics[it->first->getName()];
 
-      FileMetrics m;
-      m.LOC  = loc.total;
-      m.LLOC = loc.logical;
+      // Calculate file LOC/LLOC.
+      m.LOC = lineEnd - lineBegin + 1;
+      m.LLOC = rMyGMD.calculateLLOC(it->first->getName(), lineBegin, lineEnd);
 
-      // Init to 1, because the map may not contain any entries in a file without ifs, whiles, etc.
+      // Load McCC from the map if there's an entry. Otherwise leave it at 1.
       m.McCC = 1;
-
-      // Load McCC from the map if there's an entry.
-      auto mcccit = myMcCCByFiles.find(helper.fid);
+      auto mcccit = myMcCCByFiles.find(fid);
       if (mcccit != myMcCCByFiles.end())
         m.McCC = mcccit->second + 1;
 
@@ -262,36 +61,36 @@ void ClangMetrics::aggregateMetrics()
 
       // Subtract 1 because we only add it once at the end of the aggregation (because of McCC "plus one" definition).
       tum.McCC += m.McCC - 1;
-
-      rMyOutput.mergeFileMetrics(it->first->getName(), m);
     }
 
     // Add 1 to the McCC of the TU, because of the "plus one" definition. Then merge.
     tum.McCC += 1;
-    rMyOutput.mergeTranslationUnitMetrics(myCurrentTU, tum);
   }
     
   // Debug print Halstead metrics if requested.
   if (myDebugPrintAfterVisit)
   {
     std::cout << " --- HALSTEAD RESULTS BEGIN --- \n\n  Translation unit: " << myCurrentTU << "\n\n\n";
-    for (auto& hs : myHalsteadByFunctions)
+    for (auto& hs : myFunctionMetrics)
     {
-    if (ObjCMethodDecl::classofKind(hs.first->getDeclKind()))
-    {
-      std::cout << "  Function: " << cast<ObjCMethodDecl>(hs.first)->getNameAsString() << '\n';
-    }
-    else if (FunctionDecl::classofKind(hs.first->getDeclKind()))
-    {
-      std::cout << "  Function: " << cast<FunctionDecl>(hs.first)->getNameAsString() << '\n';
-    }
-      std::cout << "  "; hs.second.dbgPrintOperators();
-      std::cout << "  "; hs.second.dbgPrintOperands();
-      std::cout << "\n  \tOperators: " << hs.second.getOperatorCount() << "\tD: " << hs.second.getDistinctOperatorCount();
-      std::cout << "\n  \tOperands:  " << hs.second.getOperandCount() << "\tD: " << hs.second.getDistinctOperandCount() << "\n\n\n";
+      HalsteadStorage& storage = hs.second.hsStorage;
+
+      if (ObjCMethodDecl::classofKind(hs.first->getDeclKind()))
+      {
+        std::cout << "  Function: " << cast<ObjCMethodDecl>(hs.first)->getNameAsString() << '\n';
+      }
+      else if (FunctionDecl::classofKind(hs.first->getDeclKind()))
+      {
+        std::cout << "  Function: " << cast<FunctionDecl>(hs.first)->getNameAsString() << '\n';
+      }
+
+      std::cout << "  "; storage.dbgPrintOperators();
+      std::cout << "  "; storage.dbgPrintOperands();
+      std::cout << "\n  \tOperators: " << storage.getOperatorCount() << "\tD: " << storage.getDistinctOperatorCount();
+      std::cout << "\n  \tOperands:  " << storage.getOperandCount() << "\tD: " << storage.getDistinctOperandCount() << "\n\n\n";
     }
     std::cout << " --- HALSTEAD RESULTS END --- \n\n";
-  }*/
+  }
 }
 
 void GlobalMergeData::addDecl(const clang::Decl* decl)
@@ -347,26 +146,33 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   {
     type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
     kind = Object::FUNCTION;
-    oper = Range::LOC_METHOD;
+    oper = Range::NO_OP;
 
     if (auto d = dyn_cast<CXXMethodDecl>(decl))
     {
       const Range* parentRange = getDefinition(factory.create(d->getParent()));
-      if (parentRange && parentRange->type == Range::DEFINITION && !containsRange(*parentRange, createTemporaryRange(d)))
+      if (parentRange && parentRange->type == Range::DEFINITION)
+      {
+        if (!containsRange(*parentRange, createTemporaryRange(d)))
+          oper = Range::LOC_MERGE;
+
         parent = parentRange;
+      }
     }
   }
   else if (auto d = dyn_cast<CXXRecordDecl>(decl))
   {
     type = (d->getDefinition() == d ? Range::DEFINITION : Range::DECLARATION);
-    kind = Object::CLASS;
-    oper = Range::LOC_SUBTRACT;
+    kind = isInterface(d) ? Object::INTERFACE : Object::CLASS;
+    oper = Range::NO_OP;
 
     const DeclContext* pn = d->getParent();
     if (pn)
     {
       if (isa<CXXRecordDecl>(pn) || isa<FunctionDecl>(pn))
       {
+        oper = Range::LOC_SUBTRACT;
+
         const Range* parentRange = getDefinition(factory.create(cast<Decl>(pn)));
         if (parentRange && parentRange->type == Range::DEFINITION)
           parent = parentRange;
@@ -381,7 +187,16 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   {
     type = (d->getDefinition() == d ? Range::DEFINITION : Range::DECLARATION);
     kind = Object::ENUM;
-    oper = Range::oper_t();
+    oper = Range::NO_OP;
+
+    const DeclContext* pn = d->getParent();
+    if (pn)
+    {
+      if (isa<NamespaceDecl>(pn))
+      {
+        addNamespaceRange(pn);
+      }
+    }
   }
   else if (auto d = dyn_cast<NamespaceDecl>(decl))
   {
@@ -398,7 +213,9 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   }
 
   const Range& range = createRange(type, decl->getSourceRange(), parent, oper);
-  myObjects[{ factory.create(decl), kind }].insert(&range);
+  auto objit = myObjects.emplace(Object{ factory.create(decl), kind }, std::set<const Range*, RangePtrComparator>{}).first;
+  objit->second.insert(&range);
+  myRangeMap[&range] = &objit->first;
 }
 
 void GlobalMergeData::addCodeLine(SourceLocation loc)
@@ -428,11 +245,8 @@ void GlobalMergeData::aggregate(Output& output) const
   {
     LOCInfo& info = locmap[&range];
 
-    info.LOC  = range.lineEnd - range.lineBegin + 1;
-
-    auto beg  = myCodeLines.lower_bound({ range.fileID, range.lineBegin });
-    auto end  = myCodeLines.upper_bound({ range.fileID, range.lineEnd });
-    info.LLOC = std::distance(beg, end);
+    info.LOC   = range.lineEnd - range.lineBegin + 1;
+    info.LLOC  = calculateLLOC(range.fileID, range.lineBegin, range.lineEnd);
 
     info.TLOC  = info.LOC;
     info.TLLOC = info.LLOC;
@@ -440,14 +254,14 @@ void GlobalMergeData::aggregate(Output& output) const
     if (const Range* parent = range.parent)
     {
       LOCInfo& parentInfo = locmap[parent];
-      if (range.operation == Range::LOC_METHOD)
+      if (range.operation == Range::LOC_MERGE)
       {
         parentInfo.LOC   += info.TLOC;
         parentInfo.LLOC  += info.TLLOC;
         parentInfo.TLOC  += info.TLOC;
         parentInfo.TLLOC += info.TLLOC;
       }
-      else
+      else if (range.operation == Range::LOC_SUBTRACT)
       {
         parentInfo.LOC  -= info.LOC;
         parentInfo.LLOC -= info.LLOC;
@@ -455,43 +269,92 @@ void GlobalMergeData::aggregate(Output& output) const
     }
   }
 
+  std::unordered_map<const Range*, const Object*> objmap;
   for (auto& object : myObjects)
   {
     if (object.first.kind == Object::FUNCTION)
     {
       FunctionMetrics& m = output.myFunctionMetrics[object.first.uid];
-      auto it = locmap.find(getDefinition(object.first.uid));
-      if (it != locmap.end())
+
+      const Range* range = getDefinition(object.first.uid);
+      if (range)
       {
-        /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
-        m.LOC   = it->second.LOC;
-        m.LLOC  = it->second.LLOC;
-        m.TLOC  = it->second.TLOC;
-        m.TLLOC = it->second.TLLOC;
+        if (range->parent)
+        {
+          auto itp = myRangeMap.find(range->parent);
+          assert(itp != myRangeMap.end() && "All ranges should be added to the range map.");
+          if (itp->second->kind == Object::CLASS || itp->second->kind == Object::INTERFACE)
+          {
+            ++output.myClassMetrics[itp->second->uid].NLM;
+          }
+        }
+
+        auto it = locmap.find(range);
+        if (it != locmap.end())
+        {
+          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+          m.LOC = it->second.LOC;
+          m.LLOC = it->second.LLOC;
+          m.TLOC = it->second.TLOC;
+          m.TLLOC = it->second.TLLOC;
+        }
       }
     }
-    else if (object.first.kind == Object::CLASS)
+    else if (object.first.kind == Object::CLASS || object.first.kind == Object::INTERFACE)
     {
       ClassMetrics& m = output.myClassMetrics[object.first.uid];
-      auto it = locmap.find(getDefinition(object.first.uid));
-      if (it != locmap.end())
+
+      const Range* range = getDefinition(object.first.uid);
+      if (range)
       {
-        /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
-        m.LOC   = it->second.LOC;
-        m.LLOC  = it->second.LLOC;
-        m.TLOC  = it->second.TLOC;
-        m.TLLOC = it->second.TLLOC;
+        if (range->parent)
+        {
+          auto itp = myRangeMap.find(range->parent);
+          assert(itp != myRangeMap.end() && "All ranges should be added to the range map.");
+          if (itp->second->kind == Object::NAMESPACE)
+          {
+            if (object.first.kind == Object::CLASS)
+              ++output.myNamespaceMetrics[itp->second->uid].NCL;
+            else /* if INTERFACE */
+              ++output.myNamespaceMetrics[itp->second->uid].NIN;
+          }
+        }
+
+        auto it = locmap.find(range);
+        if (it != locmap.end())
+        {
+          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+          m.LOC = it->second.LOC;
+          m.LLOC = it->second.LLOC;
+          m.TLOC = it->second.TLOC;
+          m.TLLOC = it->second.TLLOC;
+        }
       }
     }
     else if (object.first.kind == Object::ENUM)
     {
       EnumMetrics& m = output.myEnumMetrics[object.first.uid];
-      auto it = locmap.find(getDefinition(object.first.uid));
-      if (it != locmap.end())
+
+      const Range* range = getDefinition(object.first.uid);
+      if (range)
       {
-        /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
-        m.LOC  = it->second.LOC;
-        m.LLOC = it->second.LLOC;
+        if (range->parent)
+        {
+          auto itp = myRangeMap.find(range->parent);
+          assert(itp != myRangeMap.end() && "All ranges should be added to the range map.");
+          if (itp->second->kind == Object::NAMESPACE)
+          {
+            ++output.myNamespaceMetrics[itp->second->uid].NEN;
+          }
+        }
+
+        auto it = locmap.find(range);
+        if (it != locmap.end())
+        {
+          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+          m.LOC = it->second.LOC;
+          m.LLOC = it->second.LLOC;
+        }
       }
     }
     else if (object.first.kind == Object::NAMESPACE)
@@ -710,4 +573,11 @@ bool GlobalMergeData::containsRange(const Range& outer, const Range& inner)
     return false;
 
   return true;
+}
+
+unsigned GlobalMergeData::calculateLLOC(unsigned fileID, unsigned lineBegin, unsigned lineEnd) const
+{
+  auto beg = myCodeLines.lower_bound({ fileID, lineBegin });
+  auto end = myCodeLines.upper_bound({ fileID, lineEnd });
+  return std::distance(beg, end);
 }

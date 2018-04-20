@@ -21,7 +21,6 @@ public:
   bool VisitTemplateTemplateParmDecl(const clang::TemplateTemplateParmDecl* decl);
   bool VisitCXXMethodDecl(const clang::CXXMethodDecl* decl);
   bool VisitEnumDecl(const clang::EnumDecl* decl);
-  bool VisitNamespaceDecl(const clang::NamespaceDecl* decl);
   bool VisitValueDecl(const clang::ValueDecl* decl);
   bool VisitVarDecl(const clang::VarDecl* decl);
   bool VisitFieldDecl(const clang::FieldDecl* decl);
@@ -32,10 +31,7 @@ public:
   bool VisitTypeAliasDecl(const clang::TypeAliasDecl* decl);
   bool VisitTypedefDecl(const clang::TypedefDecl* decl);
   bool VisitFriendDecl(const clang::FriendDecl* decl);
-  bool VisitObjCInterfaceDecl(const ObjCInterfaceDecl* decl);
-  bool VisitObjCProtocolDecl(const ObjCProtocolDecl* decl);
   bool VisitObjCMethodDecl(const clang::ObjCMethodDecl* decl);
-  bool VisitObjCCategoryDecl(const clang::ObjCCategoryDecl* decl);
 
   bool VisitDecl(const clang::Decl* decl);
   bool VisitStmt(const clang::Stmt* stmt);

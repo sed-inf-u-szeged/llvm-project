@@ -8,6 +8,9 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
   if (decl == nullptr)
     return false;
 
+  if (!decl->hasDefinition())
+    return false;
+
   // Ensure decl is of class or struct type (aka it's not a union).
   if (decl->isUnion())
     return false;
