@@ -28,9 +28,10 @@ namespace clang
       //! The hash of a UID must remain constant through its lifetime.
       virtual std::size_t hash() const = 0;
 
-      //! Returns a human-readable name for the UID.
-      //! By default, an empty string is returned.
-      virtual std::string getDebugName() const { return std::string(); }
+      //! Returns a human-readable name for the UID by which nodes can be identified in the output.
+      //! Note that the result of this function is implementation defined, and code should not depend on it.
+      //! It is only used for diagnostic purposes.
+      virtual std::string getName() const = 0;
     };
 
     // Helper for UID hashing.

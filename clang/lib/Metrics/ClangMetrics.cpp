@@ -292,10 +292,10 @@ void GlobalMergeData::aggregate(Output& output) const
         auto it = locmap.find(range);
         if (it != locmap.end())
         {
-          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
-          m.LOC = it->second.LOC;
-          m.LLOC = it->second.LLOC;
-          m.TLOC = it->second.TLOC;
+          m.name  = object.first.uid->getName();
+          m.LOC   = it->second.LOC;
+          m.LLOC  = it->second.LLOC;
+          m.TLOC  = it->second.TLOC;
           m.TLLOC = it->second.TLLOC;
         }
       }
@@ -323,10 +323,10 @@ void GlobalMergeData::aggregate(Output& output) const
         auto it = locmap.find(range);
         if (it != locmap.end())
         {
-          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
-          m.LOC = it->second.LOC;
-          m.LLOC = it->second.LLOC;
-          m.TLOC = it->second.TLOC;
+          m.name  = object.first.uid->getName();
+          m.LOC   = it->second.LOC;
+          m.LLOC  = it->second.LLOC;
+          m.TLOC  = it->second.TLOC;
           m.TLLOC = it->second.TLLOC;
         }
       }
@@ -351,8 +351,8 @@ void GlobalMergeData::aggregate(Output& output) const
         auto it = locmap.find(range);
         if (it != locmap.end())
         {
-          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
-          m.LOC = it->second.LOC;
+          m.name = object.first.uid->getName();
+          m.LOC  = it->second.LOC;
           m.LLOC = it->second.LLOC;
         }
       }
@@ -365,7 +365,7 @@ void GlobalMergeData::aggregate(Output& output) const
         auto it = locmap.find(range);
         if (it != locmap.end())
         {
-          /* TODO: Remove this! */m.name = object.first.uid->getDebugName();
+          m.name   = object.first.uid->getName();
           m.LOC   += it->second.LOC;
           m.LLOC  += it->second.LLOC;
           m.TLOC  += it->second.TLOC;
@@ -399,7 +399,7 @@ void GlobalMergeData::debugPrintObjectRanges(std::ostream& os) const
     case Object::NAMESPACE: os << "NAMESPACE: "; break;
     }
 
-    std::string debugName = object.first.uid->getDebugName();
+    std::string debugName = object.first.uid->getName();
     if (!debugName.empty())
       os << debugName << '\n';
     else

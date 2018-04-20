@@ -43,7 +43,7 @@ namespace clang
         return std::hash<std::string>()(myMangledName);
       }
 
-      std::string getDebugName() const override { return myMangledName; }
+      std::string getName() const override { return myMangledName; }
 
     private:
       // Stores the mangled name of the entity
