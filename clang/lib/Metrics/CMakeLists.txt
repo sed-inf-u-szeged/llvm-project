@@ -4,7 +4,6 @@ add_clang_library(clangMetrics
   ClangMetrics.cpp
   invoke.cpp
   NodeVisitor.cpp
-  Output.cpp
   MetricsUtility.cpp
 
   )
