@@ -32,7 +32,8 @@ void ClangMetrics::aggregateMetrics()
 
   // File and TU metrics:
   {
-    SourceManager& sm = pMyASTContext->getSourceManager();
+    // TODO: Temporary disabled because of Clang iterator assert. Investigate!
+    /*SourceManager& sm = pMyASTContext->getSourceManager();
 
     FileMetrics& tum = rMyOutput.myTranslationUnitMetrics[myCurrentTU];
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
@@ -64,7 +65,7 @@ void ClangMetrics::aggregateMetrics()
     }
 
     // Add 1 to the McCC of the TU, because of the "plus one" definition. Then merge.
-    tum.McCC += 1;
+    tum.McCC += 1;*/
   }
     
   // Debug print Halstead metrics if requested.
@@ -395,6 +396,7 @@ void GlobalMergeData::debugPrintObjectRanges(std::ostream& os) const
     {
     case Object::FUNCTION:  os << "FUNCTION: ";  break;
     case Object::CLASS:     os << "CLASS: ";     break;
+    case Object::INTERFACE: os << "INTERFACE: ";     break;
     case Object::ENUM:      os << "ENUM: ";      break;
     case Object::NAMESPACE: os << "NAMESPACE: "; break;
     }
