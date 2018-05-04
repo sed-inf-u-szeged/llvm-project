@@ -32,23 +32,28 @@ void ClangMetrics::aggregateMetrics()
 
   // File and TU metrics:
   {
-    // TODO: Temporary disabled because of Clang iterator assert. Investigate!
-    /*SourceManager& sm = pMyASTContext->getSourceManager();
+    SourceManager& sm = pMyASTContext->getSourceManager();
 
     FileMetrics& tum = rMyOutput.myTranslationUnitMetrics[myCurrentTU];
+    std::vector<const FileEntry*> fileEntries;
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
+      fileEntries.push_back(it->first);
+    }
+
+    for (auto fileEntiry : fileEntries)
+    {
       // Get line numbers.
-      FileID fid = sm.translateFile(it->first);
+      FileID fid = sm.translateFile(fileEntiry);
       unsigned lineBegin = sm.getExpansionLineNumber(sm.getLocForStartOfFile(fid));
       unsigned lineEnd   = sm.getExpansionLineNumber(sm.getLocForEndOfFile(fid));
 
       // Create metrics object.
-      FileMetrics& m = rMyOutput.myFileMetrics[it->first->getName()];
+      FileMetrics& m = rMyOutput.myFileMetrics[fileEntiry->getName()];
 
       // Calculate file LOC/LLOC.
       m.LOC = lineEnd - lineBegin + 1;
-      m.LLOC = rMyGMD.calculateLLOC(it->first->getName(), lineBegin, lineEnd);
+      m.LLOC = rMyGMD.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
 
       // Load McCC from the map if there's an entry. Otherwise leave it at 1.
       m.McCC = 1;
@@ -65,7 +70,7 @@ void ClangMetrics::aggregateMetrics()
     }
 
     // Add 1 to the McCC of the TU, because of the "plus one" definition. Then merge.
-    tum.McCC += 1;*/
+    tum.McCC += 1;
   }
     
   // Debug print Halstead metrics if requested.
@@ -107,7 +112,7 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
 
   auto createTemporaryRange = [this](const Decl* decl)
   {
-     SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+      SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
 
       SourceLocation start = decl->getLocStart();
       SourceLocation end   = decl->getLocEnd();
