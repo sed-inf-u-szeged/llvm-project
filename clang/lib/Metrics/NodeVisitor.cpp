@@ -572,6 +572,9 @@ bool ClangMetrics::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
         else if (type->isRValueReferenceType())
           hs.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::RV_REF);
       }
+
+      // Add commas.
+      hs.add<Halstead::DeclSeparatorCommaOperator>();
     }
 
     // Declaration names are already declared in their respective function.
@@ -898,6 +901,10 @@ bool ClangMetrics::NodeVisitor::VisitCallExpr(const clang::CallExpr* stmt)
       // without checking the type of 'arg'.
       handleCallArgs(hs, arg);
     }
+
+    // Add the required commas (argument count - 1).
+    for (unsigned i = 1; i < stmt->getNumArgs(); ++i)
+      hs.add<Halstead::DeclSeparatorCommaOperator>();
   }
 
   return true;
@@ -917,6 +924,10 @@ bool ClangMetrics::NodeVisitor::VisitCXXConstructExpr(const clang::CXXConstructE
       // without checking the type of 'arg'.
       handleCallArgs(hs, arg);
     }
+
+    // Add the required commas (argument count - 1).
+    for (unsigned i = 1; i < stmt->getNumArgs(); ++i)
+      hs.add<Halstead::DeclSeparatorCommaOperator>();
   }
 
   return true;
@@ -1618,6 +1629,10 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(HalsteadStora
   // this comparision also checks for those.
   if (decl->getStorageClass() == StorageClass::SC_Static)
     hs.add<Halstead::StaticOperator>();
+
+  // Add commas between parameters. Comma count is param count - 1.
+  for (unsigned i = 1; i < decl->getNumParams(); ++i)
+    hs.add<Halstead::DeclSeparatorCommaOperator>();
 }
 
 void ClangMetrics::NodeVisitor::handleMethodRelatedHalsteadStuff(HalsteadStorage& hs, const clang::CXXMethodDecl* decl)

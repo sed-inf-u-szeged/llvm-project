@@ -44,6 +44,7 @@ HALSTEAD_AUTODERIVE(TemplateOperator);
 HALSTEAD_AUTODERIVE(TypenameOperator);
 HALSTEAD_AUTODERIVE(ParenthesesInitSyntaxOperator);
 HALSTEAD_AUTODERIVE(BracesInitSyntaxOperator);
+HALSTEAD_AUTODERIVE(DeclSeparatorCommaOperator);
 HALSTEAD_AUTODERIVE(SemicolonOperator);
 HALSTEAD_AUTODERIVE(VariadicEllipsisOperator);
 HALSTEAD_AUTODERIVE(PackExpansionOperator);
