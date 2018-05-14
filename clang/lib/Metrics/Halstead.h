@@ -126,8 +126,33 @@ namespace clang
         // Internal function used for printing debug info.
         template<class T> void dbgPrint(const T& container) const
         {
+          if (container.empty())
+            return;
+
+          std::vector<std::string> names;
+          names.reserve(container.size());
           for (auto& ptr : container)
-            std::cout << "\t\t" << ptr->getDebugName() << '\n';
+            names.push_back(ptr->getDebugName());
+
+          std::sort(names.begin(), names.end());
+
+          unsigned cntr = 1;
+          const std::string* prev = &names[0];
+          for (size_t i = 1; i < names.size(); ++i)
+          {
+            if (*prev != names[i])
+            {
+              std::cout << "\t\t" << cntr << " x " << *prev << '\n';
+              cntr = 1;
+              prev = &names[i];
+            }
+            else
+            {
+              ++cntr;
+            }
+          }
+
+          std::cout << "\t\t" << cntr << " x " << *prev << '\n';
         }
 
         // Contains all the matched operators.
