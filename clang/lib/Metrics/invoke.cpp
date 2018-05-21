@@ -63,6 +63,8 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
   detail::ClangMetrics clangMetrics(output, gmd, context);
   clangMetrics.debugPrintHalsteadAfterVisit(options.enableHalsteadDebugPrint);
 
+  output.getFactory().onSourceOperationBegin(context, "");
+
   detail::ClangMetrics::NodeVisitor visitor(clangMetrics);
 
   for (auto decl : declarations)
