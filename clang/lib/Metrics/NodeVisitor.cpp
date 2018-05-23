@@ -491,6 +491,11 @@ bool ClangMetrics::NodeVisitor::VisitObjCMethodDecl(const clang::ObjCMethodDecl*
 
 bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
 {
+  if (decl->isFunctionOrFunctionTemplate())
+  {
+    this->pCurrentFunctionDecl = decl;
+  }
+
   // Add it to the GMD.
   rMyMetrics.rMyGMD.addDecl(decl);
 
@@ -1200,6 +1205,11 @@ const Decl* ClangMetrics::NodeVisitor::getDeclFromStmt(const Stmt& stmt)
 
 const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(const clang::Stmt& stmt)
 {
+  if (pCurrentFunctionDecl != nullptr)
+  {
+    return pCurrentFunctionDecl->getDeclContext();
+  }
+
   // Find function by trying to find the statement's decl - works for most cases.
   if (const Decl* d = getDeclFromStmt(stmt))
   {

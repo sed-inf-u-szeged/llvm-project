@@ -9,7 +9,7 @@
 class clang::metrics::detail::ClangMetrics::NodeVisitor final : public clang::RecursiveASTVisitor<NodeVisitor>
 {
 public:
-  NodeVisitor(ClangMetrics& action) : rMyMetrics(action)
+  NodeVisitor(ClangMetrics& action) : rMyMetrics(action), pCurrentFunctionDecl(nullptr)
   {}
 
   // Callbacks triggered when visiting a specific AST node.
@@ -145,4 +145,5 @@ private:
 
 private:
   ClangMetrics& rMyMetrics;
+  const clang::Decl* pCurrentFunctionDecl;
 };
