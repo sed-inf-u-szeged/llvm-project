@@ -96,6 +96,17 @@ namespace clang
         return nullptr;
       }
 
+      //! Access the TU metrics for the specified filename.
+      //!  \return pointer to the metrics or nullptr if there are no recorded metrics for this TU
+      const FileMetrics* getTranslationUnitMetrics(const std::string& file) const
+      {
+        auto it = myTranslationUnitMetrics.find(file);
+        if (it != myTranslationUnitMetrics.end())
+          return &it->second;
+
+        return nullptr;
+      }
+
       //! Returns a reference to the internal UIDFactory received on construction.
       UIDFactory& getFactory() const
       {
