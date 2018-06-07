@@ -5,5 +5,6 @@ add_clang_library(clangMetrics
   invoke.cpp
   NodeVisitor.cpp
   MetricsUtility.cpp
+  ASTPrePostVisitor.cpp
 
   )

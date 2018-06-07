@@ -1,6 +1,7 @@
 #include "ClangMetricsAction.h"
 #include "NodeVisitor.h"
 
+#include <clang/Metrics/ASTPrePostVisitor.h>
 #include <clang/Metrics/invoke.h>
 #include <clang/Metrics/Output.h>
 
@@ -67,11 +68,7 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
 
   detail::ClangMetrics::NodeVisitor visitor(clangMetrics);
 
-  for (auto decl : declarations)
-    visitor.TraverseDecl(decl);
-
-  for (auto stmt : statements)
-    visitor.TraverseStmt(stmt);
+  columbus::ASTPrePostTraverser traverser(context, visitor);
 
   clangMetrics.aggregateMetrics();
 

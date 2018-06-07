@@ -493,7 +493,7 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
 {
   if (decl->isFunctionOrFunctionTemplate())
   {
-    this->pCurrentFunctionDecl = decl;
+    this->pCurrentFunctionDecl.push(decl);
   }
 
   // Add it to the GMD.
@@ -514,6 +514,14 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
   }
 
   return true;
+}
+
+void ClangMetrics::NodeVisitor::VisitEndDecl(const Decl* decl)
+{
+  if (decl->isFunctionOrFunctionTemplate())
+  {
+    this->pCurrentFunctionDecl.pop();
+  }
 }
 
 bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
@@ -1205,9 +1213,9 @@ const Decl* ClangMetrics::NodeVisitor::getDeclFromStmt(const Stmt& stmt)
 
 const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(const clang::Stmt& stmt)
 {
-  if (pCurrentFunctionDecl != nullptr)
+  if (!pCurrentFunctionDecl.empty())
   {
-    return pCurrentFunctionDecl->getDeclContext();
+    return pCurrentFunctionDecl.top()->getDeclContext();
   }
 
   // Find function by trying to find the statement's decl - works for most cases.

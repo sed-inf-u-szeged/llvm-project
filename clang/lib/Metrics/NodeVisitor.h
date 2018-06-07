@@ -1,15 +1,15 @@
 #pragma once
 
 #include "ClangMetrics.h"
-#include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/Metrics/RecursiveASTPrePostVisitor.h>
 
 
 // Inner class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
 // See the Clang documentation for more info.
-class clang::metrics::detail::ClangMetrics::NodeVisitor final : public clang::RecursiveASTVisitor<NodeVisitor>
+class clang::metrics::detail::ClangMetrics::NodeVisitor final : public clang::RecursiveASTPrePostVisitor<NodeVisitor>
 {
 public:
-  NodeVisitor(ClangMetrics& action) : rMyMetrics(action), pCurrentFunctionDecl(nullptr)
+  NodeVisitor(ClangMetrics& action) : rMyMetrics(action)
   {}
 
   // Callbacks triggered when visiting a specific AST node.
@@ -34,6 +34,7 @@ public:
   bool VisitObjCMethodDecl(const clang::ObjCMethodDecl* decl);
 
   bool VisitDecl(const clang::Decl* decl);
+  void VisitEndDecl(const Decl* decl);
   bool VisitStmt(const clang::Stmt* stmt);
 
   bool VisitDeclStmt(const clang::DeclStmt* stmt);
@@ -145,5 +146,5 @@ private:
 
 private:
   ClangMetrics& rMyMetrics;
-  const clang::Decl* pCurrentFunctionDecl;
+  std::stack<const clang::Decl*> pCurrentFunctionDecl;
 };
