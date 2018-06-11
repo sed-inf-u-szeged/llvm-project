@@ -19,7 +19,8 @@ namespace clang
 
         void HandleTranslationUnit(clang::ASTContext& context)
         {
-          myVisitor.TraverseDecl(context.getTranslationUnitDecl());
+          ASTPrePostTraverser traverser(context, myVisitor);
+          traverser.run();
         }
 
       private:

@@ -520,7 +520,8 @@ void ClangMetrics::NodeVisitor::VisitEndDecl(const Decl* decl)
 {
   if (decl->isFunctionOrFunctionTemplate())
   {
-    this->pCurrentFunctionDecl.pop();
+    if(!this->pCurrentFunctionDecl.empty())
+      this->pCurrentFunctionDecl.pop();
   }
 }
 
@@ -1110,7 +1111,10 @@ bool ClangMetrics::NodeVisitor::VisitObjCBoolLiteralExpr(const ObjCBoolLiteralEx
 bool ClangMetrics::NodeVisitor::VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr* stmt)
 {
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
+  {
     rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::BoolLiteralOperand>(stmt);
+  }
+    
 
   return true;
 }
@@ -1215,7 +1219,9 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
 {
   if (!pCurrentFunctionDecl.empty())
   {
-    return pCurrentFunctionDecl.top()->getDeclContext();
+    const DeclContext* dp = pCurrentFunctionDecl.top()->getDeclContext();
+    if(dp->isFunctionOrMethod())
+      return dp;
   }
 
   // Find function by trying to find the statement's decl - works for most cases.

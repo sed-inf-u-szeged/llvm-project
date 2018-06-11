@@ -9,10 +9,6 @@ namespace clang
   class Decl;
   class Stmt;
   class Type;
-}
-
-namespace columbus
-{
 
 class ASTPrePostVisitor
 {
@@ -32,9 +28,9 @@ class ASTPrePostTraverser
   public:
     enum class NodeType
     {
-        Statement,
-        Declaration,
-        Type
+      Statement,
+      Declaration,
+      Type
     };
 
     struct NodeInfo
@@ -61,7 +57,7 @@ class ASTPrePostTraverser
 
 
 
-} // columbus namespace
+} // clang namespace
 
 #endif
 

@@ -10,9 +10,9 @@ using namespace std;
 namespace
 {
 
-  using NodeType = columbus::ASTPrePostTraverser::NodeType;
-  using NodeInfo = columbus::ASTPrePostTraverser::NodeInfo;
-  using NodeList = columbus::ASTPrePostTraverser::NodeList;
+  using NodeType = clang::ASTPrePostTraverser::NodeType;
+  using NodeInfo = clang::ASTPrePostTraverser::NodeInfo;
+  using NodeList = clang::ASTPrePostTraverser::NodeList;
   
   class ASTMergeVisitor : public RecursiveASTVisitor<ASTMergeVisitor>
   {
@@ -107,7 +107,7 @@ namespace
           dumpNodeInfo(preNode, nullptr);
         }
       }
-	  return result;
+    return result;
     }
 
     if (pre.empty())
@@ -128,8 +128,8 @@ namespace
       }
       else
       {
-	    if (preItemIterator == pre.end())
-		  return result;
+      if (preItemIterator == pre.end())
+      return result;
 
         result.push_back(*preItemIterator);
         nodeStack.push(preItemIterator->nodePtr);
@@ -142,7 +142,7 @@ namespace
 
 }
 
-namespace columbus
+namespace clang
 {
 
 ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, const bool visitTemplateInstantiations, const bool visitImplicitCode)
@@ -217,5 +217,5 @@ void ASTPrePostTraverser::run()
 }
 
 
-} // namespace columbus
+} // namespace clang
 

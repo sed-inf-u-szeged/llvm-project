@@ -68,7 +68,17 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
 
   detail::ClangMetrics::NodeVisitor visitor(clangMetrics);
 
-  columbus::ASTPrePostTraverser traverser(context, visitor);
+  for (auto decl : declarations)
+  {
+    ASTPrePostTraverser traverser(context, visitor, decl);
+    traverser.run();
+  }
+    
+  for (auto stmt : statements)
+  {
+    ASTPrePostTraverser traverser(context, visitor, stmt);
+    traverser.run();
+  }  
 
   clangMetrics.aggregateMetrics();
 

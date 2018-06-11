@@ -5,15 +5,21 @@
 
 namespace clang
 {
+  #define TRY_TO(CALL_EXPR)                                                    \
+  do {                                                                         \
+    if (!getDerived().CALL_EXPR)                                               \
+      return false;                                                            \
+  } while (false)
+
   template <typename Derived> 
-  class RecursiveASTPrePostVisitor : public columbus::ASTPrePostVisitor, public clang::RecursiveASTVisitor<Derived>
+  class RecursiveASTPrePostVisitor : public clang::ASTPrePostVisitor, public clang::RecursiveASTVisitor<Derived>
   {
   public:
-	bool visitDecl(Decl* decl);
+  bool visitDecl(Decl* decl);
 
-	void visitEndDecl(Decl* decl);
+  void visitEndDecl(Decl* decl);
 
-	bool visitStmt(Stmt* stmt);
+  bool visitStmt(Stmt* stmt);
 
   };
 
@@ -21,42 +27,45 @@ namespace clang
   bool RecursiveASTPrePostVisitor<Derived>::visitDecl(Decl* decl)
   {
     switch (decl->getKind()) {
-    #define DECL(CLASS, BASE)                                                      \
-    case Decl::CLASS:                                                              \
-    TRY_TO(WalkUpFrom##CLASS(static_cast<CLASS##Decl *>(D)))                       \                                                                  
+    #define ABSTRACT_DECL(DECL)
+    #define DECL(CLASS, BASE)                                                       \
+    case Decl::CLASS:                                                               \
+      TRY_TO(WalkUpFrom##CLASS##Decl(static_cast<CLASS##Decl *>(decl)));            \
     break;
-	}
-	return true;
+    #include "clang/AST/DeclNodes.inc"
+    }
+  return true;
   }
 
   template <typename Derived>
   void RecursiveASTPrePostVisitor<Derived>::visitEndDecl(Decl* decl)
   {
-	static_cast<Derived*>(this)->VisitEndDecl(decl);
+    static_cast<Derived*>(this)->VisitEndDecl(decl);
   }
 
   template <typename Derived>
   bool RecursiveASTPrePostVisitor<Derived>::visitStmt(Stmt* stmt)
   {
-	  
-	switch (stmt->getStmtClass()) {
-	case Stmt::NoStmtClass: break;
-    #define STMT(CLASS, PARENT)                                                \
-    case Stmt::CLASS##Class:                                                   \
-    TRY_TO(WalkUpFrom##CLASS(static_cast<CLASS *>(S))); break;
-    #define INITLISTEXPR(CLASS, PARENT)                                        \
-    case Stmt::CLASS##Class:                                                   \
-    {                                                                          \
-      auto ILE = static_cast<CLASS *>(S);                                      \
-      if (auto Sem = ILE->isSemanticForm() ? ILE : ILE->getSemanticForm())     \
-        TRY_TO(WalkUpFrom##CLASS(Sem));                                        \
-      if (auto Syn = ILE->isSemanticForm() ? ILE->getSyntacticForm() : ILE)    \
-        TRY_TO(WalkUpFrom##CLASS(Syn));                                        \
-      break;                                                                   \
+    switch (stmt->getStmtClass()) {
+    case Stmt::NoStmtClass:
+      break;
+    #define ABSTRACT_STMT(STMT)
+    #define STMT(CLASS, PARENT)                                                    \
+    case Stmt::CLASS##Class:                                                       \
+      TRY_TO(WalkUpFrom##CLASS(static_cast<CLASS *>(stmt))); break;
+    #define INITLISTEXPR(CLASS, PARENT)                                            \
+    case Stmt::CLASS##Class:                                                       \
+    {                                                                              \
+      auto ILE = static_cast<CLASS *>(stmt);                                       \
+      if (auto Sem = ILE->isSemanticForm() ? ILE : ILE->getSemanticForm())         \
+        TRY_TO(WalkUpFrom##CLASS(Sem));                                            \
+      if (auto Syn = ILE->isSemanticForm() ? ILE->getSyntacticForm() : ILE)        \
+        TRY_TO(WalkUpFrom##CLASS(Syn));                                            \
+      break;                                                                       \
     }
-
+    #include "clang/AST/StmtNodes.inc"
     }
-	return true;
+    return true;
   }
 
 }
