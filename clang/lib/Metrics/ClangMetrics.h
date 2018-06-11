@@ -225,8 +225,8 @@ public:
   //!  \param context the AST context
   ClangMetrics(Output& output, GlobalMergeData& data, ASTContext& context) :
     rMyOutput(output),
-    rMyGMD(data),
     myCurrentTU(""),
+    rMyGMD(data),
     pMyASTContext(&context)
   {
     rMyGMD.setAnalyzer(this);
@@ -236,8 +236,8 @@ public:
   //!  \param output reference to the Output object where the results will be stored
   ClangMetrics(Output& output, GlobalMergeData& data) :
     rMyOutput(output),
-    rMyGMD(data),
     myCurrentTU(""),
+    rMyGMD(data),
     pMyASTContext(nullptr)
   {
     rMyGMD.setAnalyzer(this);
