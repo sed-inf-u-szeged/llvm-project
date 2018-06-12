@@ -15,11 +15,11 @@ namespace clang
   class RecursiveASTPrePostVisitor : public clang::ASTPrePostVisitor, public clang::RecursiveASTVisitor<Derived>
   {
   public:
-  bool visitDecl(Decl* decl);
+    bool visitDecl(Decl* decl);
 
-  void visitEndDecl(Decl* decl);
+    void visitEndDecl(Decl* decl);
 
-  bool visitStmt(Stmt* stmt);
+    bool visitStmt(Stmt* stmt);
 
   };
 

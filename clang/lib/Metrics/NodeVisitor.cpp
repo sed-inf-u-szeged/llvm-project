@@ -1219,98 +1219,17 @@ const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContextFromStmt(
 {
   if (!pCurrentFunctionDecl.empty())
   {
-    const DeclContext* dp = pCurrentFunctionDecl.top()->getDeclContext();
-    if(dp->isFunctionOrMethod())
-      return dp;
-  }
-
-  // Find function by trying to find the statement's decl - works for most cases.
-  if (const Decl* d = getDeclFromStmt(stmt))
-  {
-    if (clang::ObjCMethodDecl::classof(d))
-      return cast<ObjCMethodDecl>(d);
-    else if (clang::FunctionDecl::classof(d))
-      return cast<FunctionDecl>(d);
-
-    if (const DeclContext* dp = d->getParentFunctionOrMethod())
+    const Decl* dp = pCurrentFunctionDecl.top();
     {
-      if (dp->isFunctionOrMethod())
+      if (DeclContext::classof(dp))
       {
-        return dp;
-      }
-    }
-  }
-
-  // If the above fails, then brute-force search by source location comparision.
-  // Needed for 'decltype' and possibly some other cases.
-
-  // TODO: If performance requires it, store the locations in an ordered set for faster access. Modify VisitFunctionDecl()
-  //       to save the locations of each function. This code should rarely ever run though, so only optimize if needed.
-
-  // Reference to the SourceManager for getting line and column info of SourceLocations.
-  const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
-
-  // Helper lambda. Returns whether rhs is after lhs.
-  auto isAfter = [&sm](SourceLocation lhs, SourceLocation rhs)
-  {
-    const unsigned ll = sm.getExpansionLineNumber(lhs);
-    const unsigned rl = sm.getExpansionLineNumber(rhs);
-
-    if (rl < ll)
-      return false;
-
-    if (ll < rl)
-      return true;
-
-    return sm.getExpansionColumnNumber(lhs) < sm.getExpansionColumnNumber(rhs);
-  };
-
-  // Helper lambda. Returns the distance (number of characters) from lhs to rhs.
-  // Works only if rhs is after lhs.
-  auto distance = [&sm](SourceLocation lhs, SourceLocation rhs)
-  {
-    const unsigned lines   = sm.getExpansionLineNumber(rhs)   - sm.getExpansionLineNumber(lhs);
-    const unsigned columns = sm.getExpansionColumnNumber(rhs) - sm.getExpansionColumnNumber(lhs);
-
-    return lines + columns;
-  };
-
-  // Variables for 'minvalue' calculation.
-  unsigned closestDistance = std::numeric_limits<unsigned>::max();
-  const DeclContext* closestFunction = nullptr;
-
-  // Iterate over all functions and try to find the closest to the statement that contains the statement.
-  const SourceRange stmtRange = stmt.getSourceRange();
-  for (auto& p : rMyMetrics.myFunctionMetrics)
-  {
-    assert(p.first && "Only non-null values should be stored.");
-
-    SourceRange range;
-    if (clang::ObjCMethodDecl::classofKind(p.first->getDeclKind()))
-    {
-      range = cast<ObjCMethodDecl>(p.first)->getSourceRange();
-    }
-    else if(clang::FunctionDecl::classofKind(p.first->getDeclKind()))
-    {
-      range = cast<FunctionDecl>(p.first)->getSourceRange();
-    }  
-    
-    // Is the statement within the function?
-    if (isAfter(range.getBegin(), stmtRange.getBegin()) && isAfter(stmtRange.getEnd(), range.getEnd()))
-    {
-      // Check if the distance between the start of the function and the statement is less than the closest distance.
-      unsigned dist = distance(range.getBegin(), stmtRange.getBegin());
-      if (dist < closestDistance)
-      {
-        // Update values.
-        closestDistance = dist;
-        closestFunction = p.first;
+        return cast<DeclContext>(dp);
       }
     }
   }
 
   // If no function was found, nullptr will be returned.
-  return closestFunction;
+  return nullptr;
 }
 
 void ClangMetrics::NodeVisitor::handleNestedName(const clang::DeclContext* f, const clang::NestedNameSpecifier* nns)
