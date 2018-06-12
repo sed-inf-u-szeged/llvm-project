@@ -74,17 +74,20 @@ namespace
       case NodeType::Statement:
       {
         Stmt* stmt = static_cast<Stmt*>(nodeInfo.nodePtr);
+        stmt->dump();
         break;
 
       }
       case NodeType::Declaration:
       {
         Decl* decl = static_cast<Decl*>(nodeInfo.nodePtr);
+        decl->dump();
         break;
       }
       case NodeType::Type:
       {
         Type* type = static_cast<Type*>(nodeInfo.nodePtr);
+        type->dump();
         break;
       }
     }
@@ -97,8 +100,10 @@ namespace
     auto preItemIterator = pre.begin();
     auto postItemIterator = post.begin();
 
+
     if (pre.size() != post.size())
     {
+      llvm::errs() << "Size of the preorder and postorder vector is different!\n";
       for (auto& preNode : pre)
       {
         auto found = find_if(post.begin(), post.end(), [&preNode](auto& postNode){return preNode.nodePtr == postNode.nodePtr; });
@@ -107,7 +112,7 @@ namespace
           dumpNodeInfo(preNode, nullptr);
         }
       }
-    return result;
+      return result;
     }
 
     if (pre.empty())
