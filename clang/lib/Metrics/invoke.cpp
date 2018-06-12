@@ -70,13 +70,13 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
 
   for (auto decl : declarations)
   {
-    ASTPrePostTraverser traverser(context, visitor, decl);
+    ASTPrePostTraverser traverser(context, decl, visitor);
     traverser.run();
   }
     
   for (auto stmt : statements)
   {
-    ASTPrePostTraverser traverser(context, visitor, stmt);
+    ASTPrePostTraverser traverser(context, stmt, visitor);
     traverser.run();
   }  
 
