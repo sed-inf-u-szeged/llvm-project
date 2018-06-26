@@ -65,6 +65,9 @@ public:
       // The LOC/LLOC of this node will be subtracted from the parent's LOC/LLOC.
       LOC_SUBTRACT
     } operation;
+
+    // The number of statements in this range. Incremented on the fly.
+    mutable unsigned numberOfStatements;
   };
 
   struct Object
@@ -132,6 +135,9 @@ public:
 
   // Adds a SourceLocation where there is code.
   void addCodeLine(SourceLocation loc);
+
+  // Returns a pointer to the range containing the given location, if there is one.
+  const Range* getParentRange(SourceLocation loc);
 
   // Aggregates metrics into the output.
   // This is the final step of the calculation, called after all files have been processed.

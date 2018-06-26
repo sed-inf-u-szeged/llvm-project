@@ -236,6 +236,25 @@ void GlobalMergeData::addCodeLine(SourceLocation loc)
   myCodeLines.emplace(fid, sm.getExpansionLineNumber(loc));
 }
 
+const GlobalMergeData::Range* clang::metrics::detail::GlobalMergeData::getParentRange(SourceLocation loc)
+{
+  if (myRanges.empty())
+    return nullptr;
+
+  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
+  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+
+  unsigned file   = fileid(sm.getFilename(loc));
+  unsigned line   = sm.getExpansionLineNumber(loc);
+  unsigned column = sm.getExpansionColumnNumber(loc);
+
+  auto it = myRanges.upper_bound(Range{ nullptr, file, line, column });
+  if (it == myRanges.begin())
+    return nullptr;
+
+  return &*(--it);
+}
+
 void GlobalMergeData::aggregate(Output& output) const
 {
   struct LOCInfo
@@ -392,7 +411,7 @@ void GlobalMergeData::debugPrintObjectRanges(std::ostream& os) const
     if (range.parent)
       os << " in #" << range.parent;
 
-    os << '\n';
+    os << " NOS: " << range.numberOfStatements << '\n';
   };
 
   for (auto& object : myObjects)
@@ -520,6 +539,8 @@ GlobalMergeData::createRange(Range::range_t type, const std::string& filename, u
   range.columnEnd   = columnEnd;
   range.type        = type;
   range.operation   = operation;
+  
+  range.numberOfStatements = 0;
 
   return *myRanges.insert(range).first;
 }

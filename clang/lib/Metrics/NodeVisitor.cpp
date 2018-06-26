@@ -531,6 +531,14 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
   rMyMetrics.rMyGMD.addCodeLine(stmt->getLocStart());
   rMyMetrics.rMyGMD.addCodeLine(stmt->getLocEnd());
 
+  // Increase NOS in the Range containing this statement.
+  // We are only interested in 'true' statements, not subexpressions.
+  if (!Expr::classof(stmt))
+  {
+    if (const GlobalMergeData::Range* range = rMyMetrics.rMyGMD.getParentRange(stmt->getLocStart()))
+      ++range->numberOfStatements;
+  }
+
   // Handle semicolons.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
   SourceLocation semiloc = findSemiAfterLocation(stmt->getLocEnd(), rMyMetrics.getASTContext(), false);
