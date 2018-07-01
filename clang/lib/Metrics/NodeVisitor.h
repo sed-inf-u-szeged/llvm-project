@@ -50,16 +50,9 @@ public:
   bool VisitContinueStmt(const clang::ContinueStmt* stmt);
   bool VisitLabelStmt(const clang::LabelStmt* stmt);
   bool VisitGotoStmt(const clang::GotoStmt* stmt);
-  bool VisitObjCBridgedCastExpr(const clang::ObjCBridgedCastExpr* stmt);
-  bool VisitObjCBoxedExpr(const clang::ObjCBoxedExpr* stmt);
   bool VisitCXXTryStmt(const clang::CXXTryStmt* stmt);
-  bool VisitObjCAtSynchronizedStmt(const clang::ObjCAtSynchronizedStmt* stmt);
-  bool VisitObjCAtFinallyStmt(const clang::ObjCAtFinallyStmt* stmt);
-  bool VisitObjCAtTryStmt(const clang::ObjCAtTryStmt* stmt);
   bool VisitCXXCatchStmt(const clang::CXXCatchStmt* stmt);
-  bool VisitObjCAtCatchStmt(const clang::ObjCAtCatchStmt* stmt);
   bool VisitCXXThrowExpr(const clang::CXXThrowExpr* stmt);
-  bool VisitObjCAtThrowStmt(const clang::ObjCAtThrowStmt* stmt);
   bool VisitReturnStmt(const clang::ReturnStmt* stmt);
   bool VisitUnaryExprOrTypeTraitExpr(const clang::UnaryExprOrTypeTraitExpr* stmt);
   bool VisitDeclRefExpr(const clang::DeclRefExpr* stmt);
@@ -68,20 +61,26 @@ public:
   bool VisitMemberExpr(const clang::MemberExpr* stmt);
   bool VisitCXXThisExpr(const clang::CXXThisExpr* stmt);
   bool VisitCXXNewExpr(const clang::CXXNewExpr* stmt);
-  bool VisitCXXDeleteExpr(const clang::CXXDeleteExpr* stmt); 
-  bool VisitObjCEncodeExpr(const clang::ObjCEncodeExpr* stmt);
+  bool VisitCXXDeleteExpr(const clang::CXXDeleteExpr* stmt);
   bool VisitExplicitCastExpr(const clang::ExplicitCastExpr* stmt);
+  bool VisitObjCBridgedCastExpr(const clang::ObjCBridgedCastExpr* stmt);
+  bool VisitObjCBoxedExpr(const clang::ObjCBoxedExpr* stmt);
+  bool VisitObjCAtSynchronizedStmt(const clang::ObjCAtSynchronizedStmt* stmt);
+  bool VisitObjCAtFinallyStmt(const clang::ObjCAtFinallyStmt* stmt);
+  bool VisitObjCAtTryStmt(const clang::ObjCAtTryStmt* stmt);
+  bool VisitObjCAtCatchStmt(const clang::ObjCAtCatchStmt* stmt);
+  bool VisitObjCAtThrowStmt(const clang::ObjCAtThrowStmt* stmt);
+  bool VisitObjCEncodeExpr(const clang::ObjCEncodeExpr* stmt);
 
   bool VisitIntegerLiteral(const clang::IntegerLiteral* stmt);
   bool VisitFloatingLiteral(const clang::FloatingLiteral* stmt);
   bool VisitCharacterLiteral(const clang::CharacterLiteral* stmt);
   bool VisitStringLiteral(const clang::StringLiteral* stmt); 
   bool VisitCXXBoolLiteralExpr(const clang::CXXBoolLiteralExpr* stmt);
-  bool VisitObjCBoolLiteralExpr(const ObjCBoolLiteralExpr* stmt);
   bool VisitCXXNullPtrLiteralExpr(const clang::CXXNullPtrLiteralExpr* stmt);
-  //bool VisitCompoundLiteralExpr(const clang::CompoundLiteralExpr* stmt); <-- TODO: find out what it is
-
+  bool VisitObjCBoolLiteralExpr(const ObjCBoolLiteralExpr* stmt);
   bool VisitObjCMessageExpr(const clang::ObjCMessageExpr* stmt);
+  //bool VisitCompoundLiteralExpr(const clang::CompoundLiteralExpr* stmt); <-- TODO: find out what it is
 
   bool VisitConditionalOperator(const clang::ConditionalOperator* op) { increaseMcCCStmt(op); return true; }
   bool VisitBinaryOperator(const clang::BinaryOperator* op);
