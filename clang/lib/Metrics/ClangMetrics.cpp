@@ -108,7 +108,6 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   Range::oper_t  oper;
   Object::kind_t  kind;
   const Range* parent = nullptr;
-  const ObjCImplDecl* impl = nullptr;
 
   auto createTemporaryRange = [this](const Decl* decl)
   {
@@ -199,26 +198,47 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   else if(auto d = dyn_cast<ObjCCategoryDecl>(decl))
   {
     oper = Range::NO_OP;
-    kind = Object::INTERFACE;
+    kind = d->IsClassExtension() ? Object::INTERFACE : Object::CLASS;
     type = Range::DEFINITION;
-    impl = d->getImplementation();
     addNamespaceRange(d->getParent());
   }
   else if(auto d = dyn_cast<ObjCInterfaceDecl>(decl))
   {
     oper = Range::NO_OP;
-    kind = Object::INTERFACE;
+    kind = Object::CLASS;
     type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
-    impl = d->getImplementation();
     addNamespaceRange(d->getParent());
+  }
+  else if(auto d = dyn_cast<ObjCCategoryImplDecl>(decl))
+  {
+    parent = getDefinition(factory.create(dyn_cast<Decl>(d->getCategoryDecl())));
+    createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE);
+    return;
+  }
+  else if(auto d = dyn_cast<ObjCImplementationDecl>(decl))
+  {
+    parent = getDefinition(factory.create(dyn_cast<Decl>(d->getClassInterface())));
+    createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE);
+    return;
   }
   else if(auto d = dyn_cast<ObjCMethodDecl>(decl))
   {
     type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
     kind = Object::FUNCTION;
     oper = Range::NO_OP;
-
-    const Range* parentRange = getDefinition(factory.create(d->getClassInterface()));
+    
+    const DeclContext* parentContext = d->getParent();
+  
+    if(const ObjCCategoryImplDecl* impl = dyn_cast<ObjCCategoryImplDecl>(parentContext))
+    {
+      parentContext = impl->getCategoryDecl();
+    }
+    else if(const ObjCImplementationDecl* impl = dyn_cast<ObjCImplementationDecl>(parentContext))
+    {
+      parentContext = impl->getClassInterface();
+    }
+    
+    const Range* parentRange = getDefinition(factory.create(dyn_cast<Decl>(parentContext)));
     if (parentRange && parentRange->type == Range::DEFINITION)
     {
       parent = parentRange;
@@ -257,10 +277,6 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   auto objit = myObjects.emplace(Object{ factory.create(decl), kind }, std::set<const Range*, RangePtrComparator>{}).first;
   objit->second.insert(&range);
   myRangeMap[&range] = &objit->first;
-  if(impl)
-  {
-    const Range& implRange = createRange(Range::DEFINITION, impl->getSourceRange(), &range, Range::LOC_MERGE);
-  }
 }
 
 void GlobalMergeData::addCodeLine(SourceLocation loc)
