@@ -38,6 +38,7 @@ public:
   bool VisitStmt(const clang::Stmt* stmt);
 
   bool VisitDeclStmt(const clang::DeclStmt* stmt);
+  bool VisitLambdaExpr(const clang::LambdaExpr* stmt);
   bool VisitIfStmt(const clang::IfStmt* stmt);
   bool VisitForStmt(const clang::ForStmt* stmt);
   bool VisitCXXForRangeStmt(const clang::CXXForRangeStmt* stmt);

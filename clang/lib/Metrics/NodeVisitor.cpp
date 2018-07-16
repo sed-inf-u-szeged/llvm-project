@@ -605,6 +605,19 @@ bool ClangMetrics::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
   return true;
 }
 
+bool ClangMetrics::NodeVisitor::VisitLambdaExpr(const clang::LambdaExpr* stmt)
+{
+  CXXRecordDecl* rd = stmt->getLambdaClass();
+  CXXMethodDecl* md = stmt->getCallOperator();
+  if (rd && md)
+  {
+    TraverseCXXRecordDecl(rd);
+    TraverseCXXMethodDecl(md);
+  }
+
+  return true;
+}
+
 bool ClangMetrics::NodeVisitor::VisitIfStmt(const clang::IfStmt* stmt)
 {
   increaseMcCCStmt(stmt);
