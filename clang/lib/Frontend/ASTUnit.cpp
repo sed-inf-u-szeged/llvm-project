@@ -814,6 +814,10 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   bool disableValid = false;
   if (::getenv("LIBCLANG_DISABLE_PCH_VALIDATION"))
     disableValid = true;
+
+  if (::getenv("LIBCLANG_ALLOW_PCH_WITH_COMPILER_ERRORS"))
+    AllowPCHWithCompilerErrors = true;
+
   AST->Reader = new ASTReader(
       PP, *AST->ModuleCache, AST->Ctx.get(), PCHContainerRdr, {},
       /*isysroot=*/"",
