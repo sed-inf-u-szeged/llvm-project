@@ -20,13 +20,19 @@ void ClangMetrics::aggregateMetrics()
   // Function metrics:
   for (auto& met : myFunctionMetrics)
   {
-    FunctionMetrics& m = rMyOutput.myFunctionMetrics[factory.create(cast<Decl>(met.first))];
+    auto declaration = cast<Decl>(met.first);
+    FunctionMetrics& m = rMyOutput.myFunctionMetrics[factory.create(declaration)];
 
-    m.McCC = met.second.McCC;
-    m.H_Operators  = met.second.hsStorage.getOperatorCount();
-    m.H_Operands   = met.second.hsStorage.getOperandCount();
-    m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
-    m.HD_Operands  = met.second.hsStorage.getDistinctOperandCount();  
+    if (declaration != nullptr &&
+        declaration->getAsFunction() != nullptr &&
+        declaration->getAsFunction()->isThisDeclarationADefinition())
+    {
+      m.McCC = met.second.McCC;
+      m.H_Operators  = met.second.hsStorage.getOperatorCount();
+      m.H_Operands   = met.second.hsStorage.getOperandCount();
+      m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
+      m.HD_Operands  = met.second.hsStorage.getDistinctOperandCount();
+    }
   }
 
   // File and TU metrics:
