@@ -84,6 +84,15 @@ namespace clang
       //! Number of distinct operands according to Halstead calculation.
       unsigned HD_Operands;
 
+      //! Number of statements
+      unsigned NOS;
+
+      //! Nesting Level
+      unsigned NL;
+
+      //! Nesting Levele Else-If
+      unsigned NLE;
+
       //! Returns the 'Halstead Calculated Program Length (HCPL)' of the function.
       //! HCPL = n1 * log(n1) + n2 * log(n2), where
       //!  n1: number of distinct operators

@@ -537,8 +537,12 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
   {
     if (const GlobalMergeData::Range* range = rMyMetrics.rMyGMD.getParentRange(stmt->getLocStart()))
       ++range->numberOfStatements;
-  }
 
+    if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
+    {
+      ++rMyMetrics.myFunctionMetrics[f].NOS;
+    }
+  }
   // Handle semicolons.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
   SourceLocation semiloc = findSemiAfterLocation(stmt->getLocEnd(), rMyMetrics.getASTContext(), false);

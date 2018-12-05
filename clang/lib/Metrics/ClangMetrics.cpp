@@ -32,6 +32,7 @@ void ClangMetrics::aggregateMetrics()
       m.H_Operands   = met.second.hsStorage.getOperandCount();
       m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
       m.HD_Operands  = met.second.hsStorage.getDistinctOperandCount();
+      m.NOS          = met.second.NOS;
     }
   }
 

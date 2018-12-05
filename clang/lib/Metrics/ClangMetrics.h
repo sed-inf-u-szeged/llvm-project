@@ -299,6 +299,9 @@ private:
   {
     // McCabe's complexity for the function.
     unsigned McCC = 1;
+    unsigned NOS = 0;
+    unsigned NL = 0;
+    unsigned NLE = 0;
 
     // Storage for Halstead operators and operands.
     HalsteadStorage hsStorage;
