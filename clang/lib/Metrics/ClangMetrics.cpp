@@ -33,6 +33,8 @@ void ClangMetrics::aggregateMetrics()
       m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
       m.HD_Operands  = met.second.hsStorage.getDistinctOperandCount();
       m.NOS          = met.second.NOS;
+      m.NL           = met.second.NL.getNestingLevel();
+      m.NLE          = met.second.NLE.getNestingLevel();
     }
   }
 

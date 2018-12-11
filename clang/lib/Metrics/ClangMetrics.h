@@ -13,6 +13,7 @@
 #include <set>
 #include <memory>
 #include <string>
+#include <stack>
 
 namespace clang {
 
@@ -295,13 +296,63 @@ protected:
   std::string myCurrentTU;
 
 private:
+
+  class NestingLevelCounter
+  {
+    public:
+      NestingLevelCounter()
+        : maxLevel (0)
+      {
+        currentLevel.push(0);
+      }
+
+      void changeLevel(bool increase)
+      {
+        if (increase)
+        {
+          unsigned& currentLevelValue = currentLevel.top();
+          currentLevelValue += 1;
+          if (currentLevelValue > maxLevel)
+            maxLevel = currentLevelValue;
+        }
+        else
+        {
+          currentLevel.top() -= 1;
+        }
+      }
+
+      void stackLevel(bool increase)
+      {
+        if (increase)
+          currentLevel.push(currentLevel.top());
+        else
+          if (currentLevel.size() > 1)
+            currentLevel.pop();
+          // else TODO warning
+      }
+
+      unsigned getNestingLevel()
+      {
+        return maxLevel;
+      }
+
+    protected:
+      std::stack<unsigned> currentLevel;
+      unsigned maxLevel;
+  };
+
   struct FunctionMetricsData
   {
     // McCabe's complexity for the function.
     unsigned McCC = 1;
+    // Number of statements
     unsigned NOS = 0;
-    unsigned NL = 0;
-    unsigned NLE = 0;
+
+    // Nesting level
+    NestingLevelCounter NL;
+
+    // Nesting level else-if
+    NestingLevelCounter NLE;
 
     // Storage for Halstead operators and operands.
     HalsteadStorage hsStorage;

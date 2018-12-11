@@ -13,6 +13,7 @@ namespace clang
       bool visitDecl(Decl* decl);
       void visitEndDecl(Decl* decl);
       bool visitStmt(Stmt* stmt);
+      void visitEndStmt(Stmt* stmt);
   };
 
   #define TRY_TO(CALL_EXPR)                                                    \
@@ -71,5 +72,10 @@ namespace clang
     return true;
   }
 
+  template <typename Derived>
+  void RecursiveASTPrePostVisitor<Derived>::visitEndStmt(Stmt* stmt)
+  {
+    static_cast<Derived*>(this)->VisitEndStmt(stmt);
+  }
   #undef TRY_TO
 }

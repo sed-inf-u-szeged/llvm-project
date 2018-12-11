@@ -491,6 +491,12 @@ bool ClangMetrics::NodeVisitor::VisitObjCMethodDecl(const clang::ObjCMethodDecl*
 
 bool ClangMetrics::NodeVisitor::VisitDecl(const Decl* decl)
 {
+  if (!alreadyVisitedNodes.insert((void*)decl).second)
+    return false;
+
+  if (decl->isImplicit())
+    return false;
+
   if (decl->isFunctionOrFunctionTemplate())
   {
     this->pCurrentFunctionDecl.push(decl);
@@ -525,11 +531,56 @@ void ClangMetrics::NodeVisitor::VisitEndDecl(const Decl* decl)
   }
 }
 
+void ClangMetrics::NodeVisitor::handleNLMetrics(const clang::Stmt* stmt, const bool increase)
+{
+  if (!Expr::classof(stmt))
+    if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
+    {
+      auto& metrics = rMyMetrics.myFunctionMetrics[f];
+      if (isa<ForStmt>(stmt) ||
+          isa<WhileStmt>(stmt) ||
+          isa<DoStmt>(stmt) ||
+          isa<SwitchStmt>(stmt))
+      {
+        metrics.NL.changeLevel(increase);
+        metrics.NLE.changeLevel(increase);
+      }
+      else if (isa<IfStmt>(stmt))
+      {
+        metrics.NL.changeLevel(increase);
+        const clang::Stmt* parent = searchForParent<clang::Stmt>(stmt);
+        if (isa<IfStmt>(parent))
+        {
+          if (cast<IfStmt>(parent)->getElse() != stmt)
+            metrics.NLE.changeLevel(increase);
+        }
+        else
+          metrics.NLE.changeLevel(increase);
+
+      }
+      else if (isa<CXXTryStmt>(stmt))
+      {
+        metrics.NL.stackLevel(increase);
+      }
+      else if (isa<CXXCatchStmt>(stmt))
+      {
+        if (increase)
+          metrics.NL.changeLevel(increase);
+        metrics.NLE.changeLevel(increase);
+      }
+    }
+}
+
 bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
 {
+  if (!alreadyVisitedNodes.insert((void*)stmt).second)
+    return false;
+
   // Add places where there is sure to be code.
   rMyMetrics.rMyGMD.addCodeLine(stmt->getLocStart());
   rMyMetrics.rMyGMD.addCodeLine(stmt->getLocEnd());
+
+  handleNLMetrics(stmt, true);
 
   // Increase NOS in the Range containing this statement.
   // We are only interested in 'true' statements, not subexpressions.
@@ -549,6 +600,12 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
   handleSemicolon(sm, getFunctionContextFromStmt(*stmt), semiloc);
   return true;
 }
+
+void ClangMetrics::NodeVisitor::VisitEndStmt(const clang::Stmt* stmt)
+{
+  handleNLMetrics(stmt, false);
+}
+
 
 bool ClangMetrics::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
 {

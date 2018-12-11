@@ -2,7 +2,7 @@
 
 #include "ClangMetrics.h"
 #include <clang/Metrics/RecursiveASTPrePostVisitor.h>
-
+#include <unordered_set>
 
 // Inner class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
 // See the Clang documentation for more info.
@@ -36,6 +36,7 @@ public:
   bool VisitDecl(const clang::Decl* decl);
   void VisitEndDecl(const Decl* decl);
   bool VisitStmt(const clang::Stmt* stmt);
+  void VisitEndStmt(const clang::Stmt* stmt);
 
   bool VisitDeclStmt(const clang::DeclStmt* stmt);
   bool VisitLambdaExpr(const clang::LambdaExpr* stmt);
@@ -120,6 +121,9 @@ private:
   void handleFunctionRelatedHalsteadStuff(HalsteadStorage& hs, const clang::FunctionDecl* decl);
   void handleMethodRelatedHalsteadStuff(HalsteadStorage& hs, const clang::CXXMethodDecl* decl);
 
+  // Handle countings for NL and NLE metrics
+  void handleNLMetrics(const clang::Stmt* stmt, bool increase);
+
   // Helper function. Returns the first parent (recursively searched upwards) of the node or null if there is no
   // parent of type T for the node.
   template<class T, class N> const T* searchForParent(N node)
@@ -147,4 +151,5 @@ private:
 private:
   ClangMetrics& rMyMetrics;
   std::stack<const clang::Decl*> pCurrentFunctionDecl;
+  std::unordered_set<void *> alreadyVisitedNodes;
 };
