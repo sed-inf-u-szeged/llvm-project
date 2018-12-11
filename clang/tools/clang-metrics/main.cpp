@@ -37,7 +37,7 @@ void printFunctions(const Output& output)
   });
 
   std::ofstream out("Function-Metrics.csv");
-  out << "Name,LOC,TLOC,LLOC,TLLOC,McCC,HCPL,HDIF,HPL,HPV,HVOL,HEFF,HNDB,HTRP\n";
+  out << "Name,LOC,TLOC,LLOC,TLLOC,McCC,NOS,NL,NLE,HCPL,HDIF,HPL,HPV,HVOL,HEFF,HNDB,HTRP\n";
 
   for (auto it = functions.begin(); it != functions.end(); ++it)
   {
@@ -50,6 +50,9 @@ void printFunctions(const Output& output)
       << m.LLOC << sep
       << m.TLLOC << sep
       << m.McCC << sep
+      << m.NOS << sep
+      << m.NL << sep
+      << m.NLE << sep
       << m.HCPL() << sep
       << m.HDIF() << sep
       << m.HPL() << sep
