@@ -69,6 +69,10 @@ public:
 
     // The number of statements in this range. Incremented on the fly.
     mutable unsigned numberOfStatements;
+
+    // The number of accessSpecDecl-s (like public:) in this range. Needed for LLOC calculation
+    mutable unsigned nOfAccessSpecDecls = 0;
+
   };
 
   struct Object
@@ -159,10 +163,17 @@ public:
     pMyAnalyzer = analyzer;
   }
 
-private:
-  // Returns the file ID of the filename. Creates a new ID if there isn't one already.
-  unsigned fileid(const std::string& filename);
+  // Mapping declarations to their ranges
+  std::unordered_map<const clang::CXXRecordDecl *, const GlobalMergeData::Range *> declToRangeMap;
+  
+  // Mapping files to numberOfAccessSpecifiers
+  mutable std::unordered_map<unsigned, unsigned> fileIDToNOfAccessSpec;
 
+  // Returns the file ID of the filename. Creates a new ID if there isn't one
+  // already.
+  unsigned fileid(const std::string &filename);
+
+private:
   // Creates a new range and returns a reference to it.
   // Note that ranges that only differ in their type or parent from a range already added, will not be created.
   const Range& createRange(Range::range_t type, const std::string& filename,

@@ -318,7 +318,13 @@ bool ClangMetrics::NodeVisitor::VisitAccessSpecDecl(const clang::AccessSpecDecl*
   // Get function in which this decl is declared in.
   if (const DeclContext* f = decl->getParentFunctionOrMethod())
     rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::AccessSpecDeclOperator>(decl);
-
+  else if (const CXXRecordDecl *c = dyn_cast<CXXRecordDecl>(decl->getLexicalDeclContext()))
+  {
+    const GlobalMergeData::Range *r = rMyMetrics.rMyGMD.declToRangeMap[c];
+    r->nOfAccessSpecDecls++;
+    rMyMetrics.rMyGMD.fileIDToNOfAccessSpec[r->fileID] ++; //store for the file LLOC, which is calculated later
+    std::cout << "visited AccesSpecDecl on DeclContext: " << c << std::endl;
+  }
   return true;
 }
 
@@ -572,7 +578,7 @@ void ClangMetrics::NodeVisitor::handleNLMetrics(const clang::Stmt* stmt, const b
 }
 
 bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
-{
+{  
   if (!alreadyVisitedNodes.insert((void*)stmt).second)
     return false;
 
@@ -584,7 +590,16 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
 
   // Increase NOS in the Range containing this statement.
   // We are only interested in 'true' statements, not subexpressions.
-  if (!Expr::classof(stmt))
+  
+  //TODO: this can be done faster...
+  const auto& parents = rMyMetrics.getASTContext()->getParents(*stmt);
+  const Stmt *parent = nullptr;
+
+  if (!parents.empty())
+    parent = parents[0].get<Stmt>();
+
+  if (!Expr::classof(stmt) 
+    || (parent && isa<CompoundStmt>(parent)))
   {
     if (const GlobalMergeData::Range* range = rMyMetrics.rMyGMD.getParentRange(stmt->getLocStart()))
       ++range->numberOfStatements;
@@ -596,6 +611,7 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt* stmt)
   }
   // Handle semicolons.
   const SourceManager& sm = rMyMetrics.getASTContext()->getSourceManager();
+  //std::cout << "STMT visited at " << stmt->getLocStart().printToString(sm) << " class: " << stmt->getStmtClassName() << " Expr::classof " << Expr::classof(stmt) << " parents.size = "<< parents.size() <<std::endl;
   SourceLocation semiloc = findSemiAfterLocation(stmt->getLocEnd(), rMyMetrics.getASTContext(), false);
   handleSemicolon(sm, getFunctionContextFromStmt(*stmt), semiloc);
   return true;
@@ -657,7 +673,7 @@ bool ClangMetrics::NodeVisitor::VisitDeclStmt(const clang::DeclStmt* stmt)
       }
 
       // Add commas.
-      hs.add<Halstead::DeclSeparatorCommaOperator>();
+      //hs.add<Halstead::DeclSeparatorCommaOperator>();
     }
 
     // Declaration names are already declared in their respective function.
@@ -999,8 +1015,8 @@ bool ClangMetrics::NodeVisitor::VisitCallExpr(const clang::CallExpr* stmt)
     }
 
     // Add the required commas (argument count - 1).
-    for (unsigned i = 1; i < stmt->getNumArgs(); ++i)
-      hs.add<Halstead::DeclSeparatorCommaOperator>();
+    //for (unsigned i = 1; i < stmt->getNumArgs(); ++i)
+    //  hs.add<Halstead::DeclSeparatorCommaOperator>();
   }
 
   return true;
@@ -1022,8 +1038,8 @@ bool ClangMetrics::NodeVisitor::VisitCXXConstructExpr(const clang::CXXConstructE
     }
 
     // Add the required commas (argument count - 1).
-    for (unsigned i = 1; i < stmt->getNumArgs(); ++i)
-      hs.add<Halstead::DeclSeparatorCommaOperator>();
+    //for (unsigned i = 1; i < stmt->getNumArgs(); ++i)
+    //  hs.add<Halstead::DeclSeparatorCommaOperator>();
   }
 
   return true;
@@ -1044,15 +1060,18 @@ bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr* stmt)
         hs.add<Halstead::ValueDeclOperand>(decl);
     }
 
-    // Handle arrow/dot.
-    if (stmt->isArrow())
-      hs.add<Halstead::OperatorOperator>(UnifiedCXXOperator::ARROW);
-    else
-      hs.add<Halstead::OperatorOperator>(UnifiedCXXOperator::DOT);
+    if (!stmt->isImplicitAccess())
+    {
+      // Handle arrow/dot.
+      if (stmt->isArrow())
+        hs.add<Halstead::OperatorOperator>(UnifiedCXXOperator::ARROW);
+      else
+        hs.add<Halstead::OperatorOperator>(UnifiedCXXOperator::DOT);
+    }
 
     // Add Halstead operators/operands if this is a nested name.
     handleNestedName(f, stmt->getQualifier());
-    
+
   }
 
   return true;
@@ -1060,6 +1079,9 @@ bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr* stmt)
 
 bool ClangMetrics::NodeVisitor::VisitCXXThisExpr(const clang::CXXThisExpr* stmt)
 {
+  if (stmt->isImplicit())
+    return true;
+
   if (const DeclContext* f = getFunctionContextFromStmt(*stmt))
   {
     // Add this keyword.
@@ -1655,9 +1677,9 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(HalsteadStora
   if (decl->getStorageClass() == StorageClass::SC_Static)
     hs.add<Halstead::StaticOperator>();
 
-  // Add commas between parameters. Comma count is param count - 1.
-  for (unsigned i = 1; i < decl->getNumParams(); ++i)
-    hs.add<Halstead::DeclSeparatorCommaOperator>();
+  // Add commas between parameters. Comma count is param count - 1. // commas removes as operators
+  //for (unsigned i = 1; i < decl->getNumParams(); ++i)
+  //  hs.add<Halstead::DeclSeparatorCommaOperator>();
 }
 
 void ClangMetrics::NodeVisitor::handleMethodRelatedHalsteadStuff(HalsteadStorage& hs, const clang::CXXMethodDecl* decl)

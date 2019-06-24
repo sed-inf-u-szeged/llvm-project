@@ -11,6 +11,8 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
   if (!decl->hasDefinition())
     return false;
 
+  decl = decl->getDefinition();
+
   // Ensure decl is of class or struct type (aka it's not a union).
   if (decl->isUnion())
     return false;
@@ -71,6 +73,7 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
   }
 
   // If everything went OK, check for the existence of the virtual destructor.
-  const CXXDestructorDecl* dd = decl->getDestructor();
-  return dd && dd->isVirtual();
+  //const CXXDestructorDecl* dd = decl->getDestructor();
+  //return dd && dd->isVirtual();
+  return true;
 }

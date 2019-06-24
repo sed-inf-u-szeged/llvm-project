@@ -62,6 +62,9 @@ void ClangMetrics::aggregateMetrics()
       // Calculate file LOC/LLOC.
       m.LOC = lineEnd - lineBegin + 1;
       m.LLOC = rMyGMD.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
+      // Legacy compatibility: accessSpecifiers should not count as LLOC!
+      m.LLOC -= rMyGMD.fileIDToNOfAccessSpec[rMyGMD.fileid(fileEntiry->getName())];
+      std::cout << "FILE: Substracted " << rMyGMD.fileIDToNOfAccessSpec[rMyGMD.fileid(fileEntiry->getName())] << " LLOCs in fileid  " << rMyGMD.fileid(fileEntiry->getName()) << std::endl;
 
       // Load McCC from the map if there's an entry. Otherwise leave it at 1.
       m.McCC = 1;
@@ -281,11 +284,26 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   {
     return;
   }
+  SourceRange sourceRange = decl->getSourceRange();
 
-  const Range& range = createRange(type, decl->getSourceRange(), parent, oper);
+  //Special case for templated functions
+  if (auto f = dyn_cast<FunctionDecl>(decl))
+    if (const FunctionTemplateDecl* templateDecl = f->getDescribedFunctionTemplate())
+      sourceRange = templateDecl->getSourceRange();
+  
+  // Special case for templated classes
+  if (auto r = dyn_cast<CXXRecordDecl>(decl))
+    if (const ClassTemplateDecl* templateDecl = r->getDescribedClassTemplate())
+      sourceRange = templateDecl->getSourceRange();
+  
+
+
+  const Range& range = createRange(type, sourceRange, parent, oper);
   auto objit = myObjects.emplace(Object{ factory.create(decl), kind }, std::set<const Range*, RangePtrComparator>{}).first;
   objit->second.insert(&range);
   myRangeMap[&range] = &objit->first;
+  if (const CXXRecordDecl* d = dyn_cast<CXXRecordDecl>(decl))
+    declToRangeMap[d] = &range;
 }
 
 void GlobalMergeData::addCodeLine(SourceLocation loc)
@@ -336,6 +354,10 @@ void GlobalMergeData::aggregate(Output& output) const
 
     info.LOC   = range.lineEnd - range.lineBegin + 1;
     info.LLOC  = calculateLLOC(range.fileID, range.lineBegin, range.lineEnd);
+
+    // Legacy compatibility: accessSpecifiers should not count as LLOC!
+    info.LLOC -= range.nOfAccessSpecDecls;
+    std::cout << "Substracted " << range.nOfAccessSpecDecls << " LLOCs in fileid  " << range.fileID << std::endl;
 
     info.TLOC  = info.LOC;
     info.TLLOC = info.LLOC;
