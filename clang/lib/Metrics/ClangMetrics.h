@@ -70,9 +70,6 @@ public:
     // The number of statements in this range. Incremented on the fly.
     mutable unsigned numberOfStatements;
 
-    // The number of accessSpecDecl-s (like public:) in this range. Needed for LLOC calculation
-    mutable unsigned nOfAccessSpecDecls = 0;
-
   };
 
   struct Object
@@ -164,10 +161,7 @@ public:
   }
 
   // Mapping declarations to their ranges
-  std::unordered_map<const clang::CXXRecordDecl *, const GlobalMergeData::Range *> declToRangeMap;
-  
-  // Mapping files to numberOfAccessSpecifiers
-  mutable std::unordered_map<unsigned, unsigned> fileIDToNOfAccessSpec;
+  //std::unordered_map<const clang::CXXRecordDecl *, const GlobalMergeData::Range *> declToRangeMap;
 
   // Returns the file ID of the filename. Creates a new ID if there isn't one
   // already.

@@ -60,6 +60,7 @@ public:
   bool VisitDeclRefExpr(const clang::DeclRefExpr* stmt);
   bool VisitCallExpr(const clang::CallExpr* stmt);
   bool VisitCXXConstructExpr(const clang::CXXConstructExpr* stmt);
+  bool VisitCXXUnresolvedConstructExpr(const clang::CXXUnresolvedConstructExpr * expr);
   bool VisitMemberExpr(const clang::MemberExpr* stmt);
   bool VisitCXXThisExpr(const clang::CXXThisExpr* stmt);
   bool VisitCXXNewExpr(const clang::CXXNewExpr* stmt);
@@ -87,6 +88,7 @@ public:
   bool VisitConditionalOperator(const clang::ConditionalOperator* op) { increaseMcCCStmt(op); return true; }
   bool VisitBinaryOperator(const clang::BinaryOperator* op);
   bool VisitUnaryOperator(const clang::UnaryOperator* op);
+  bool VisitClassScopeFunctionSpecializationDecl(const clang::ClassScopeFunctionSpecializationDecl* decl);
 
 private:
   // Helper function.
@@ -110,6 +112,8 @@ private:
 
   // Helper function. Use it to handle function call arguments.
   void handleCallArgs(HalsteadStorage& hs, const clang::Stmt* arg);
+
+  bool handleTemplateArgument(HalsteadStorage & hs, const clang::TemplateArgument &arg);
 
   // Helper function for converting Clang's overloaded operator type to UnifiedCXXOperator.
   static UnifiedCXXOperator convertOverloadedOperator(const clang::CXXOperatorCallExpr& stmt);

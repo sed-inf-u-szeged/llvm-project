@@ -71,14 +71,14 @@ namespace clang
         }
 
         //! Print operators for debugging.
-        void dbgPrintOperators() const
+        void dbgPrintOperators()
         {
           std::cout << "\tOperators:\n";
           dbgPrint(myOperators);
         }
 
         //! Print operands for debugging.
-        void dbgPrintOperands() const
+        void dbgPrintOperands()
         {
           std::cout << "\tOperands:\n";
           dbgPrint(myOperands);
@@ -124,35 +124,28 @@ namespace clang
         }
 
         // Internal function used for printing debug info.
-        template<class T> void dbgPrint(const T& container) const
+        template<class T> void dbgPrint(std::vector<std::unique_ptr<T>>& container)
         {
           if (container.empty())
             return;
 
-          std::vector<std::string> names;
-          names.reserve(container.size());
-          for (auto& ptr : container)
-            names.push_back(ptr->getDebugName());
-
-          std::sort(names.begin(), names.end());
+          std::sort(container.begin(), container.end(),
+            [](const std::unique_ptr<T>& a,const std::unique_ptr<T>& b){ return a->getDebugName() < b->getDebugName();}
+          );
 
           unsigned cntr = 1;
-          const std::string* prev = &names[0];
-          for (size_t i = 1; i < names.size(); ++i)
-          {
-            if (*prev != names[i])
-            {
-              std::cout << "\t\t" << cntr << " x " << *prev << '\n';
+          std::unique_ptr<T> *prev = &container[0];
+          for (size_t i = 1; i < container.size(); ++i) {
+            if (!(*prev)->isSameAs(*container[i])) {
+              std::cout << "\t\t" << cntr << " x " << (*prev)->getDebugName() << '\n';
               cntr = 1;
-              prev = &names[i];
-            }
-            else
-            {
+              prev = &container[i];
+            } else {
               ++cntr;
             }
           }
 
-          std::cout << "\t\t" << cntr << " x " << *prev << '\n';
+          std::cout << "\t\t" << cntr << " x " << (*prev)->getDebugName() << '\n';
         }
 
         // Contains all the matched operators.

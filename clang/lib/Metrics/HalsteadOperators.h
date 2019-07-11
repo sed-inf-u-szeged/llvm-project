@@ -64,7 +64,7 @@ HALSTEAD_AUTODERIVE(PureVirtualDeclarationOperator);
 HALSTEAD_AUTODERIVE(ObjCInstanceMethodOperator);
 HALSTEAD_AUTODERIVE(ObjCClassMethodOperator);
 HALSTEAD_AUTODERIVE(ObjCMessageOperator);
-
+HALSTEAD_AUTODERIVE(UndeclaredFunctionOperator);
 
 // More specific operator definitions
 HALSTEAD_DERIVE(AccessSpecDeclOperator, AccessSpecDecl)

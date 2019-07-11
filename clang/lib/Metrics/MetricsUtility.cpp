@@ -1,4 +1,6 @@
 #include <clang/Metrics/MetricsUtility.h>
+#include<vector>
+#include<iostream>
 
 #include <clang/AST/AST.h>
 
@@ -76,4 +78,32 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
   //const CXXDestructorDecl* dd = decl->getDestructor();
   //return dd && dd->isVirtual();
   return true;
+}
+
+bool clang::manuallyExpandClassScopeFunctionSpecializationDecl(const clang::ClassScopeFunctionSpecializationDecl* decl, clang::ASTContext &context)
+{
+  for (auto res : decl->getDeclContext()->lookup(decl->getSpecialization()->getNameInfo().getName()))
+  {
+    if (FunctionTemplateDecl *templDecl = dyn_cast_or_null<FunctionTemplateDecl>(res))
+    {
+      std::vector<TemplateArgument> myTArgList;
+      unsigned parameterIndex = 0;
+      for (auto param : templDecl->getAsFunction()->parameters())
+      {
+        if(param->getType()->isTemplateTypeParmType()){
+          myTArgList.push_back(TemplateArgument(decl->getSpecialization()->parameters()[parameterIndex]->getType()));
+        }
+        parameterIndex++;
+      }
+
+      //std::cout << "has: " << decl->hasExplicitTemplateArgs() << std::endl;
+
+      decl->getSpecialization()->setFunctionTemplateSpecialization(templDecl,TemplateArgumentList::CreateCopy(context,ArrayRef<TemplateArgument>(myTArgList))
+        ,nullptr,TSK_ExplicitSpecialization,&decl->templateArgs(),decl->getSpecialization()->getSourceRange().getBegin());
+      context.setClassScopeSpecializationPattern(decl->getSpecialization(),templDecl->getAsFunction());
+
+      return true;
+    }
+  }
+  return false;
 }
