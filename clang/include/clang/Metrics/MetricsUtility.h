@@ -5,6 +5,7 @@ namespace clang
   class CXXRecordDecl;
   class ClassScopeFunctionSpecializationDecl;
   class ASTContext;
+  class FunctionDecl;
 
   namespace metrics
   {
@@ -24,6 +25,9 @@ namespace clang
   /// So to bypass this, we build them manually. Deducing the original template and template arguments by hand.
   /// This may break if Clang gets updated and it may not always produce correct results.
   bool manuallyExpandClassScopeFunctionSpecializationDecl(const clang::ClassScopeFunctionSpecializationDecl * decl, clang::ASTContext & context);
+
+  ///Helper to determine if function is a lambda (couldn't find this call in libtool)
+  bool isLambda(const clang::FunctionDecl *decl);
 }
 
 

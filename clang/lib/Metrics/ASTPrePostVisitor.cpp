@@ -2,7 +2,7 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <stack>
-
+#include<iostream>
 
 using namespace clang;
 using namespace std;
@@ -99,7 +99,6 @@ namespace
     stack<void*> nodeStack;
     auto preItemIterator = pre.begin();
     auto postItemIterator = post.begin();
-
 
     if (pre.size() != post.size())
     {

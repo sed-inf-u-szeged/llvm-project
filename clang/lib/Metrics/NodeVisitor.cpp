@@ -14,7 +14,7 @@ SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext *con,
 
 bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl *decl) {
   // Calculating Halstead for functions only.
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add the declarator (class, struct or union) as operator.
@@ -26,8 +26,9 @@ bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl *decl) {
       hs.add<Halstead::UnionOperator>();
 
     // Add name if there's one (operand).
-    if (!decl->getDeclName().isEmpty())
+    if (!decl->getDeclName().isEmpty()){
       hs.add<Halstead::ValueDeclOperand>(decl);
+    }
   }
 
   return true;
@@ -53,7 +54,7 @@ bool ClangMetrics::NodeVisitor::VisitFunctionTemplateDecl(
 
 bool ClangMetrics::NodeVisitor::VisitTemplateTypeParmDecl(
     const clang::TemplateTypeParmDecl *decl) {
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add typename or class keyword (operator).
@@ -87,7 +88,7 @@ bool ClangMetrics::NodeVisitor::VisitNonTypeTemplateParmDecl(
     const clang::NonTypeTemplateParmDecl *decl) {
   // Only handle default arguments here. Everything else is done in
   // VisitValueDecl().
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // If the decl has a default argument, we add the equal sign (operator).
@@ -108,7 +109,7 @@ bool ClangMetrics::NodeVisitor::VisitNonTypeTemplateParmDecl(
 
 bool ClangMetrics::NodeVisitor::VisitTemplateTemplateParmDecl(
     const clang::TemplateTemplateParmDecl *decl) {
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add the inner 'template' keyword of the template template parameter.
@@ -154,7 +155,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXMethodDecl(const CXXMethodDecl *decl) {
 
 bool ClangMetrics::NodeVisitor::VisitEnumDecl(const EnumDecl *decl) {
   // Halstead stuff:
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add 'enum' keyword (operator).
@@ -174,8 +175,9 @@ bool ClangMetrics::NodeVisitor::VisitEnumDecl(const EnumDecl *decl) {
       handleQualType(hs, type->getType(), true);
 
     // Add name if there's one (operand).
-    if (!decl->getDeclName().isEmpty())
+    if (!decl->getDeclName().isEmpty()){
       hs.add<Halstead::ValueDeclOperand>(decl);
+    }
   }
 
   return true;
@@ -183,15 +185,16 @@ bool ClangMetrics::NodeVisitor::VisitEnumDecl(const EnumDecl *decl) {
 
 bool ClangMetrics::NodeVisitor::VisitValueDecl(const ValueDecl *decl) {
   //std::cout << "HELLO valuedecl type ";
+  //decl->dump();
   //decl->getType()->dump();
   //std::cout << std::endl;
   // Get function in which this decl is declared in.
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Handle CXXMethodDecl bug (?). For local classes, methods will be
     // identified as ValueDecls at first.
-    if (CXXMethodDecl::classof(decl)) {
+    if (CXXMethodDecl::classof(decl) && !isLambda(decl->getAsFunction())) {
       handleMethodRelatedHalsteadStuff(hs, cast<CXXMethodDecl>(decl));
       handleFunctionRelatedHalsteadStuff(hs, cast<CXXMethodDecl>(decl));
     } else {
@@ -216,8 +219,10 @@ bool ClangMetrics::NodeVisitor::VisitValueDecl(const ValueDecl *decl) {
       }
 
       // A value declaration can have an operand too (its name).
-      if (!decl->getDeclName().isEmpty())
+      if (!decl->getDeclName().isEmpty()) {
         hs.add<Halstead::ValueDeclOperand>(decl);
+      }
+
     }
   }
 
@@ -229,7 +234,7 @@ bool ClangMetrics::NodeVisitor::VisitVarDecl(const clang::VarDecl *decl) {
   // VisitValueDecl().
   if (decl->hasInit()) {
     // Get function in which this decl is declared in.
-    if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+    if (const DeclContext *f = getFunctionContext(decl)) {
       // Handle initialization.
       switch (decl->getInitStyle()) {
       case VarDecl::InitializationStyle::CInit:
@@ -271,7 +276,7 @@ bool ClangMetrics::NodeVisitor::VisitVarDecl(const clang::VarDecl *decl) {
   // Only need to handle 'static' for local variables.
   // FieldDecls (class members) cannot be static for local classes.
   if (decl->isStaticLocal()) {
-    if (const DeclContext *f = decl->getParentFunctionOrMethod())
+    if (const DeclContext *f = getFunctionContext(decl))
       rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::StaticOperator>();
   }
 
@@ -283,7 +288,7 @@ bool ClangMetrics::NodeVisitor::VisitFieldDecl(const clang::FieldDecl *decl) {
   // VisitValueDecl().
   if (decl->hasInClassInitializer()) {
     // Get function in which this decl is declared in.
-    if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+    if (const DeclContext *f = getFunctionContext(decl)) {
       // Handle initialization.
       switch (decl->getInClassInitStyle()) {
       case InClassInitStyle::ICIS_CopyInit:
@@ -301,7 +306,7 @@ bool ClangMetrics::NodeVisitor::VisitFieldDecl(const clang::FieldDecl *decl) {
   }
 
   if (decl->isMutable()) {
-    if (const DeclContext *f = decl->getParentFunctionOrMethod())
+    if (const DeclContext *f = getFunctionContext(decl))
       rMyMetrics.myFunctionMetrics[f]
           .hsStorage.add<Halstead::MutableOperator>();
   }
@@ -312,7 +317,7 @@ bool ClangMetrics::NodeVisitor::VisitFieldDecl(const clang::FieldDecl *decl) {
 bool ClangMetrics::NodeVisitor::VisitAccessSpecDecl(
     const clang::AccessSpecDecl *decl) {
   // Get function in which this decl is declared in.
-  if (const DeclContext *f = decl->getParentFunctionOrMethod())
+  if (const DeclContext *f = getFunctionContext(decl))
     rMyMetrics.myFunctionMetrics[f]
         .hsStorage.add<Halstead::AccessSpecDeclOperator>(decl);
 
@@ -321,7 +326,7 @@ bool ClangMetrics::NodeVisitor::VisitAccessSpecDecl(
 
 bool ClangMetrics::NodeVisitor::VisitUsingDecl(const clang::UsingDecl *decl) {
   // Get function in which this decl is declared in.
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add using keyword (operator).
@@ -338,7 +343,7 @@ bool ClangMetrics::NodeVisitor::VisitUsingDecl(const clang::UsingDecl *decl) {
 bool ClangMetrics::NodeVisitor::VisitUsingDirectiveDecl(
     const clang::UsingDirectiveDecl *decl) {
   // Get function in which this decl is declared in.
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add using keyword (operator).
@@ -358,7 +363,7 @@ bool ClangMetrics::NodeVisitor::VisitUsingDirectiveDecl(
 
 bool ClangMetrics::NodeVisitor::VisitNamespaceAliasDecl(
     const clang::NamespaceAliasDecl *decl) {
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add namespace keyword (operator).
@@ -384,7 +389,7 @@ bool ClangMetrics::NodeVisitor::VisitTypeAliasDecl(
   assert(con && "ASTContext should always be available.");
 
   // Get function in which this decl is declared in
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add using keyword (operator).
@@ -410,7 +415,7 @@ bool ClangMetrics::NodeVisitor::VisitTypedefDecl(
   assert(con && "ASTContext should always be available.");
 
   // Get function in which this decl is declared in
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add typedef keyword (operator).
@@ -428,7 +433,7 @@ bool ClangMetrics::NodeVisitor::VisitTypedefDecl(
 }
 
 bool ClangMetrics::NodeVisitor::VisitFriendDecl(const clang::FriendDecl *decl) {
-  if (const DeclContext *f = decl->getParentFunctionOrMethod()) {
+  if (const DeclContext *f = getFunctionContext(decl)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
     // Add 'friend' keyword (operator).
@@ -475,6 +480,12 @@ bool ClangMetrics::NodeVisitor::VisitObjCMethodDecl(
   return true;
 }
 
+// These are the declarations where we need to track their scope. For example: a variable inside a class inside a function inside a struct etc.
+bool isScopedDecl(const Decl *decl)
+{
+  return decl->isFunctionOrFunctionTemplate() || dyn_cast_or_null<TagDecl>(decl);
+}
+
 bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
   if (!alreadyVisitedNodes.insert((void *)decl).second)
     return false;
@@ -482,7 +493,10 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
   if (decl->isImplicit())
     return false;
 
-  if (decl->isFunctionOrFunctionTemplate()) {
+  if (isScopedDecl(decl)) {
+    if(const NamedDecl *nd = dyn_cast_or_null<NamedDecl>(decl))
+      std::cout << nd->getNameAsString() << " started" << std::endl;
+
     this->pCurrentFunctionDecl.push(decl);
   }
 
@@ -502,18 +516,24 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
   SourceLocation semiloc = findSemiAfterLocation(
       decl->getLocEnd(), rMyMetrics.getASTContext(), false);
 
-  if (dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()) ||
-      dyn_cast_or_null<ObjCMethodDecl>(decl->getParentFunctionOrMethod())) {
-    handleSemicolon(sm, decl->getParentFunctionOrMethod(), semiloc);
+  if (dyn_cast_or_null<FunctionDecl>(getFunctionContext(decl)) ||
+      dyn_cast_or_null<ObjCMethodDecl>(getFunctionContext(decl))) {
+    handleSemicolon(sm, getFunctionContext(decl), semiloc);
   }
 
   return true;
 }
 
-void ClangMetrics::NodeVisitor::VisitEndDecl(const Decl *decl) {
-  if (decl->isFunctionOrFunctionTemplate()) {
+void ClangMetrics::NodeVisitor::VisitEndDecl(const Decl *decl)
+{
+  if (isScopedDecl(decl))
+  {
     if (!this->pCurrentFunctionDecl.empty())
+    {
+      if(const NamedDecl *nd = dyn_cast_or_null<NamedDecl>(decl))
+        std::cout << nd->getNameAsString() << " ended" << std::endl;
       this->pCurrentFunctionDecl.pop();
+    }
   }
 }
 
@@ -546,6 +566,7 @@ void ClangMetrics::NodeVisitor::handleNLMetrics(const clang::Stmt *stmt,
 }
 
 bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt) {
+  //stmt->dump();
   if (!alreadyVisitedNodes.insert((void *)stmt).second)
     return false;
 
@@ -646,15 +667,53 @@ bool ClangMetrics::NodeVisitor::VisitDeclStmt(const clang::DeclStmt *stmt) {
 
   return true;
 }
+bool ClangMetrics::NodeVisitor::TraverseLambdaExpr(const clang::LambdaExpr *stmt) {
+  //std::cout << "Lambda traverse called " << std::endl;
+  //stmt->dump();
+  return true;
+}
 
 bool ClangMetrics::NodeVisitor::VisitLambdaExpr(const clang::LambdaExpr *stmt) {
+  //stmt->dump();
   CXXRecordDecl *rd = stmt->getLambdaClass();
   CXXMethodDecl *md = stmt->getCallOperator();
-  if (rd && md) {
-    TraverseCXXRecordDecl(rd);
+  if (rd && md)
+  {
     TraverseCXXMethodDecl(md);
-  }
+    //TraverseCXXRecordDecl(rd);
+    //VisitEndDecl(rd);
+    if (const DeclContext *f = getFunctionContextFromStmt(*stmt))
+    {
+      auto itInit = stmt->capture_init_begin();
+      for (auto cap : stmt->captures())
+      {
+        if (cap.capturesThis())
+        {
+          rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThisExprOperator>();
+        }
+        else if (cap.isExplicit())
+        {
+          if (stmt->isInitCapture(&cap) || true)
+          {
+            if (itInit == stmt->capture_init_end())
+            {
+              //std::cout << "ERROR, init iterator ended unexpectedly..." << std::endl;
+              break;
+            }
+            (*itInit)->dump();
+            TraverseStmt(*itInit);
+          }
+        }
+        ++itInit;
+      }
+      //if I write [&] it captures many variables implicitly... so if it captures at least 1, then it must have & capture
+      if(stmt->implicit_capture_begin() != stmt->implicit_capture_end())
+        rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::LV_REF);
+    }
 
+    VisitEndDecl(md);
+  }
+  std::cout << "Lambda visit ended" << std::endl;
   return true;
 }
 
@@ -894,11 +953,14 @@ bool ClangMetrics::NodeVisitor::VisitDeclRefExpr(const DeclRefExpr *stmt) {
     // function can also become an operand if used as an argument to another
     // function. Here we only handle ValueDecls that are always operands.
     if (const ValueDecl *decl = stmt->getDecl()) {
-      if (!FunctionDecl::classof(decl))
+      CXXRecordDecl *rd = decl->getType()->getAsCXXRecordDecl();
+
+      if (!FunctionDecl::classof(decl) && !(rd && rd->isLambda())){
         rMyMetrics.myFunctionMetrics[f]
             .hsStorage.add<Halstead::ValueDeclOperand>(decl);
+      }
     }
-    
+
     for (auto arg : stmt->template_arguments()) {
       handleTemplateArgument(rMyMetrics.myFunctionMetrics[f].hsStorage,arg.getArgument());
     }
@@ -979,6 +1041,20 @@ bool ClangMetrics::NodeVisitor::VisitCallExpr(const clang::CallExpr *stmt) {
   return true;
 }
 
+//The only thing we do here is visit the initializer list, the others are handled elsewhere
+bool ClangMetrics::NodeVisitor::VisitCXXConstructorDecl(const clang::CXXConstructorDecl *decl) {
+  HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[decl].hsStorage;
+  if (decl->getDeclName().isEmpty())
+    return true;
+  
+  for(auto init : decl->inits())
+  {
+    if(const FieldDecl *field = init->getAnyMember())
+      hs.add<Halstead::ValueDeclOperand>(field);
+  }
+
+  return true;
+}
 bool ClangMetrics::NodeVisitor::VisitCXXConstructExpr(
     const clang::CXXConstructExpr *stmt) {
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
@@ -1009,6 +1085,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXUnresolvedConstructExpr(const CXXUnresol
   return true;
 }
 bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr *stmt) {
+  std::cout << "Visiting memberexpr" << std::endl;
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
@@ -1016,8 +1093,9 @@ bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr *stmt) {
     // function can also become an operand if used as an argument to another
     // function. Here we only handle ValueDecls that are always operands.
     if (const ValueDecl *decl = stmt->getMemberDecl()) {
-      if (!FunctionDecl::classof(decl))
+      if (!FunctionDecl::classof(decl)) {
         hs.add<Halstead::ValueDeclOperand>(decl);
+      }
     }
 
     if (!stmt->isImplicitAccess()) {
@@ -1035,7 +1113,7 @@ bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr *stmt) {
     // Add Halstead operators/operands if this is a nested name.
     handleNestedName(f, stmt->getQualifier());
   }
-
+  std::cout << "Visiting memberexpr end" << std::endl;
   return true;
 }
 
@@ -1046,6 +1124,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXThisExpr(
 
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     // Add this keyword.
+    std::cout << "this added" << std::endl;
     rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThisExprOperator>();
   }
 
@@ -1114,6 +1193,7 @@ bool ClangMetrics::NodeVisitor::VisitExplicitCastExpr(
 
 bool ClangMetrics::NodeVisitor::VisitIntegerLiteral(
     const IntegerLiteral *stmt) {
+  //stmt->dump();
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     if (auto udl = searchForParent<UserDefinedLiteral>(stmt))
       rMyMetrics.myFunctionMetrics[f]
@@ -1121,6 +1201,9 @@ bool ClangMetrics::NodeVisitor::VisitIntegerLiteral(
     else
       rMyMetrics.myFunctionMetrics[f]
           .hsStorage.add<Halstead::IntegerLiteralOperand>(stmt);
+    //std::cout << "Integer literal added to: " << dyn_cast_or_null<FunctionDecl>(f)->getNameAsString() << std::endl;
+  }else {
+    //std::cout <<"Failed to add it, isLambdaCapture :" << isCurrentScopeALambdaCapture(*stmt) << std::endl;
   }
 
   return true;
@@ -1283,12 +1366,63 @@ const Decl *ClangMetrics::NodeVisitor::getDeclFromStmt(const Stmt &stmt) {
   return nullptr;
 }
 
+//hack
+const clang::FunctionDecl* ClangMetrics::NodeVisitor::getLambdaAncestor(const clang::Stmt &stmt) {
+  ASTContext *con = rMyMetrics.getASTContext();
+
+  ast_type_traits::DynTypedNode elem = ast_type_traits::DynTypedNode::create(stmt);
+  for (size_t i = 0; i < 2; i++)
+  {
+    auto parents = con->getParents(elem);
+    
+    auto it = parents.begin();
+    if (it == parents.end())
+      break;
+
+    if(const Stmt* parentStmt = it->get<Stmt>())
+    {
+      if (const LambdaExpr *lambdaExpr = dyn_cast_or_null<LambdaExpr>(parentStmt))
+      {
+        return lambdaExpr->getCallOperator();
+      }
+      else
+      {
+        elem = ast_type_traits::DynTypedNode::create(*parentStmt);
+      }
+    }
+    else if (const Decl* parentDecl = it->get<Decl>())
+    {
+      elem = ast_type_traits::DynTypedNode::create(*parentDecl);
+    }
+  }
+  return nullptr;
+}
+
+//Big hack... but I have found no other way to detect lambda capture scope... A stmt is in lambda capture if it's not in the lambda body, but it is under LambdaExpr in tha AST
+bool ClangMetrics::NodeVisitor::isStmtInALambdaCapture(const clang::Stmt &stmt) {
+  if (!pCurrentFunctionDecl.empty())
+    if(const FunctionDecl * fd = dyn_cast_or_null<FunctionDecl>(pCurrentFunctionDecl.top()))
+      if(isLambda(fd))
+        return false;
+  
+  if(getLambdaAncestor(stmt))
+    return true;
+  
+  return false;
+}
+
 const clang::DeclContext *
-ClangMetrics::NodeVisitor::getFunctionContextFromStmt(const clang::Stmt &stmt) {
-  if (!pCurrentFunctionDecl.empty()) {
+ClangMetrics::NodeVisitor::getFunctionContextFromStmt(const clang::Stmt &stmt)
+{
+  if(isStmtInALambdaCapture(stmt))
+    return nullptr; //we deal with these elsewhere
+
+  if (!pCurrentFunctionDecl.empty())
+  {
     const Decl *dp = pCurrentFunctionDecl.top();
     {
-      if (DeclContext::classof(dp)) {
+      if (DeclContext::classof(dp) && FunctionDecl::classof(dp))
+      {
         return cast<DeclContext>(dp);
       }
     }
@@ -1296,6 +1430,43 @@ ClangMetrics::NodeVisitor::getFunctionContextFromStmt(const clang::Stmt &stmt) {
 
   // If no function was found, nullptr will be returned.
   return nullptr;
+}
+
+const clang::DeclContext* ClangMetrics::NodeVisitor::getFunctionContext()
+{
+  if (!pCurrentFunctionDecl.empty())
+  {
+    const Decl *dp = pCurrentFunctionDecl.top();
+    {
+      if (DeclContext::classof(dp) && FunctionDecl::classof(dp))
+      {
+        return cast<DeclContext>(dp);
+      }
+    }
+  }
+
+  // If no function was found, nullptr will be returned.
+  return nullptr;
+}
+
+const clang::DeclContext *
+ClangMetrics::NodeVisitor::getFunctionContext(const clang::Decl *decl)
+{
+  return decl->getParentFunctionOrMethod();
+  /*
+  if (!pCurrentFunctionDecl.empty())
+  {
+    const Decl *dp = pCurrentFunctionDecl.top();
+    {
+      if (DeclContext::classof(dp) && FunctionDecl::classof(dp))
+      {
+        return cast<DeclContext>(dp);
+      }
+    }
+  }
+
+  // If no function was found, nullptr will be returned.
+  return nullptr;*/
 }
 
 void ClangMetrics::NodeVisitor::handleNestedName(
@@ -1423,8 +1594,9 @@ void ClangMetrics::NodeVisitor::handleCallArgs(HalsteadStorage &hs,
         // Every ValueDecl is already added by VisitDeclRefExpr() except
         // FunctionDecls, because in this case they are considered operands - we
         // add them here manually.
-        if (FunctionDecl::classof(argDecl))
+        if (FunctionDecl::classof(argDecl)){
           hs.add<Halstead::ValueDeclOperand>(argDecl);
+        }
       }
     }
 
@@ -1678,7 +1850,7 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(
   // (Halstead), unless it's a constructor, a destructor or a cast operator (in
   // which case the typename is considered part of the operator keyword).
   if (!CXXConstructorDecl::classof(decl) && !CXXDestructorDecl::classof(decl) &&
-      !CXXConversionDecl::classof(decl))
+      !CXXConversionDecl::classof(decl) && !isLambda(decl))
     handleQualType(hs, decl->getReturnType(), true);
 
   // A function always has a name, which can be considered as an operand
@@ -1689,7 +1861,8 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(
   if (const FunctionProtoType *fpt =
           decl->getType()->getAs<FunctionProtoType>()) {
     if (fpt->hasTrailingReturn()) {
-      hs.add<Halstead::AutoOperator>();
+      if(!isLambda(decl))
+        hs.add<Halstead::AutoOperator>();
       hs.add<Halstead::TrailingReturnArrowOperator>();
     }
   }
@@ -1701,7 +1874,8 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(
   // TODO: Check for constexpr.
 
   // Handle inline.
-  if (decl->isInlineSpecified())
+  // Lambdas are always inline and they appaer as if it was explicit, but it isn't
+  if (decl->isInlineSpecified() && !isLambda(decl))
     hs.add<Halstead::InlineOperator>();
 
   // Handle defaulted and deleted functions.
@@ -1726,9 +1900,6 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(
     //TemplateArgumentListInfo
     for (auto arg : decl->getTemplateSpecializationArgsAsWritten()->arguments()) {
       handleTemplateArgument(hs,arg.getArgument());
-      arg.getArgument().dump();
-      //arg.getAsType()->DeducedTemplateSpecialization
-      //std::cout << std::endl << arg.getAsType()->getTypeClassName() << std::endl;
     }
   }
 
@@ -1743,8 +1914,8 @@ void ClangMetrics::NodeVisitor::handleMethodRelatedHalsteadStuff(
   // Ensure pointer validity.
   if (!decl)
     return;
-
-  if (decl->isConst())
+  
+  if (decl->isConst() && !isLambda(decl))
     hs.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::CONST);
 
   if (decl->isVolatile())

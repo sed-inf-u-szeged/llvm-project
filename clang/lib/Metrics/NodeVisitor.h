@@ -39,6 +39,7 @@ public:
   void VisitEndStmt(const clang::Stmt* stmt);
 
   bool VisitDeclStmt(const clang::DeclStmt* stmt);
+  bool TraverseLambdaExpr(const clang::LambdaExpr * stmt);
   bool VisitLambdaExpr(const clang::LambdaExpr* stmt);
   bool VisitIfStmt(const clang::IfStmt* stmt);
   bool VisitForStmt(const clang::ForStmt* stmt);
@@ -59,6 +60,7 @@ public:
   bool VisitUnaryExprOrTypeTraitExpr(const clang::UnaryExprOrTypeTraitExpr* stmt);
   bool VisitDeclRefExpr(const clang::DeclRefExpr* stmt);
   bool VisitCallExpr(const clang::CallExpr* stmt);
+  bool VisitCXXConstructorDecl(const clang::CXXConstructorDecl * decl);
   bool VisitCXXConstructExpr(const clang::CXXConstructExpr* stmt);
   bool VisitCXXUnresolvedConstructExpr(const clang::CXXUnresolvedConstructExpr * expr);
   bool VisitMemberExpr(const clang::MemberExpr* stmt);
@@ -97,8 +99,16 @@ private:
   // Helper function. Returns the declaration context of a statement or nullptr if there's no such context.
   const clang::Decl* getDeclFromStmt(const clang::Stmt& stmt);
 
+  const clang::FunctionDecl * getLambdaAncestor(const clang::Stmt & stmt);
+
+  bool isStmtInALambdaCapture(const clang::Stmt & stmt);
+
   // Helper function. Returns the function in which a statement is used, or nullptr if the statement is not within a function.
   const clang::DeclContext* getFunctionContextFromStmt(const clang::Stmt& stmt);
+
+  const clang::DeclContext * getFunctionContext();
+
+  const clang::DeclContext * getFunctionContext(const clang::Decl * decl);
 
   // Helper function. Creates Halstead operators/operands based on a qualified name, and appends them to
   // the HalsteadStorage of func.
@@ -151,7 +161,6 @@ private:
 
     return nullptr;
   }
-
 private:
   ClangMetrics& rMyMetrics;
   std::stack<const clang::Decl*> pCurrentFunctionDecl;

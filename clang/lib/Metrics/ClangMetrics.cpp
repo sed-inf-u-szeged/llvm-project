@@ -162,7 +162,19 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
     kind = Object::FUNCTION;
     oper = Range::NO_OP;
 
-    if (auto d = dyn_cast<CXXMethodDecl>(decl))
+    const Decl *declParent = nullptr;
+    const DeclContext* pn = d->getParent();
+    
+    //Correctly get the parent even if it is a lambda
+    const CXXRecordDecl *recordParent = dyn_cast_or_null<CXXRecordDecl>(pn);
+    if(recordParent && recordParent->isLambda())
+      pn = recordParent->getParent();
+
+    if (type == Range::DEFINITION && pn && isa<FunctionDecl>(pn)) {
+      oper = Range::LOC_SUBTRACT;
+      parent = getDefinition(factory.create(dyn_cast_or_null<FunctionDecl>(pn)));
+    }
+    else if (auto d = dyn_cast<CXXMethodDecl>(decl))
     {
       const Range* parentRange = getDefinition(factory.create(d->getParent()));
       if (parentRange && parentRange->type == Range::DEFINITION)
@@ -348,6 +360,8 @@ void GlobalMergeData::aggregate(Output& output) const
   for (const Range& range : myRanges)
   {
     LOCInfo& info = locmap[&range];
+
+    std::cout << "Range (startsAt: " << range.lineBegin << ") optype: " << range.operation << std::endl;
 
     info.LOC   = range.lineEnd - range.lineBegin + 1;
     info.LLOC  = calculateLLOC(range.fileID, range.lineBegin, range.lineEnd);
