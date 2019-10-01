@@ -5,7 +5,7 @@
 
 #include <memory>
 #include <unordered_map>
-
+#include <unordered_set>
 
 namespace clang
 {
@@ -106,6 +106,9 @@ namespace clang
 
         return nullptr;
       }
+
+      //Helper for linking multiple components
+      std::unordered_set<std::string> filesAlreadyProcessed;
 
       //! Returns a reference to the internal UIDFactory received on construction.
       UIDFactory& getFactory() const

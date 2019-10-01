@@ -494,8 +494,8 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
     return false;
 
   if (isScopedDecl(decl)) {
-    if(const NamedDecl *nd = dyn_cast_or_null<NamedDecl>(decl))
-      std::cout << nd->getNameAsString() << " started" << std::endl;
+    /*if(const NamedDecl *nd = dyn_cast_or_null<NamedDecl>(decl))
+      std::cout << nd->getNameAsString() << " started" << std::endl;*/
 
     this->pCurrentFunctionDecl.push(decl);
   }
@@ -530,8 +530,8 @@ void ClangMetrics::NodeVisitor::VisitEndDecl(const Decl *decl)
   {
     if (!this->pCurrentFunctionDecl.empty())
     {
-      if(const NamedDecl *nd = dyn_cast_or_null<NamedDecl>(decl))
-        std::cout << nd->getNameAsString() << " ended" << std::endl;
+      /*if(const NamedDecl *nd = dyn_cast_or_null<NamedDecl>(decl))
+        std::cout << nd->getNameAsString() << " ended" << std::endl;*/
       this->pCurrentFunctionDecl.pop();
     }
   }
@@ -713,7 +713,7 @@ bool ClangMetrics::NodeVisitor::VisitLambdaExpr(const clang::LambdaExpr *stmt) {
 
     VisitEndDecl(md);
   }
-  std::cout << "Lambda visit ended" << std::endl;
+  //std::cout << "Lambda visit ended" << std::endl;
   return true;
 }
 
@@ -1085,7 +1085,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXUnresolvedConstructExpr(const CXXUnresol
   return true;
 }
 bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr *stmt) {
-  std::cout << "Visiting memberexpr" << std::endl;
+  //std::cout << "Visiting memberexpr" << std::endl;
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
 
@@ -1113,7 +1113,7 @@ bool ClangMetrics::NodeVisitor::VisitMemberExpr(const clang::MemberExpr *stmt) {
     // Add Halstead operators/operands if this is a nested name.
     handleNestedName(f, stmt->getQualifier());
   }
-  std::cout << "Visiting memberexpr end" << std::endl;
+  //std::cout << "Visiting memberexpr end" << std::endl;
   return true;
 }
 
@@ -1124,7 +1124,7 @@ bool ClangMetrics::NodeVisitor::VisitCXXThisExpr(
 
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     // Add this keyword.
-    std::cout << "this added" << std::endl;
+    //std::cout << "this added" << std::endl;
     rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThisExprOperator>();
   }
 
@@ -1898,8 +1898,12 @@ void ClangMetrics::NodeVisitor::handleFunctionRelatedHalsteadStuff(
     hs.add<Halstead::TemplateOperator>();
     //decl->getDescribedFunctionTemplate()->getTemplateParameters()->begin()->getParam();
     //TemplateArgumentListInfo
-    for (auto arg : decl->getTemplateSpecializationArgsAsWritten()->arguments()) {
-      handleTemplateArgument(hs,arg.getArgument());
+    if(auto tArgInfo = decl->getTemplateSpecializationArgsAsWritten())
+    {
+      for (auto arg : tArgInfo->arguments())
+      {
+        handleTemplateArgument(hs,arg.getArgument());
+      }
     }
   }
 

@@ -186,16 +186,21 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
       }
     }
   }
-  else if (auto d = dyn_cast<CXXRecordDecl>(decl))
+  else if (auto d = dyn_cast<RecordDecl>(decl))
   {
     type = (d->getDefinition() == d ? Range::DEFINITION : Range::DECLARATION);
-    kind = isInterface(d) ? Object::INTERFACE : Object::CLASS;
+
+    if (auto cxxd = dyn_cast<CXXRecordDecl>(decl))
+      kind = isInterface(cxxd) ? Object::INTERFACE : Object::CLASS;
+    else
+      kind = Object::CLASS;
+
     oper = Range::NO_OP;
 
     const DeclContext* pn = d->getParent();
     if (pn)
     {
-      if (isa<CXXRecordDecl>(pn) || isa<FunctionDecl>(pn))
+      if (isa<CXXRecordDecl>(pn) || isa<FunctionDecl>(pn) || isa<RecordDecl>(pn))
       {
         oper = Range::LOC_SUBTRACT;
 
@@ -361,7 +366,7 @@ void GlobalMergeData::aggregate(Output& output) const
   {
     LOCInfo& info = locmap[&range];
 
-    std::cout << "Range (startsAt: " << range.lineBegin << ") optype: " << range.operation << std::endl;
+    //std::cout << "Range (startsAt: " << range.lineBegin << ") optype: " << range.operation << std::endl;
 
     info.LOC   = range.lineEnd - range.lineBegin + 1;
     info.LLOC  = calculateLLOC(range.fileID, range.lineBegin, range.lineEnd);
@@ -481,6 +486,19 @@ void GlobalMergeData::aggregate(Output& output) const
       NamespaceMetrics& m = output.myNamespaceMetrics[object.first.uid];
       for (const Range* range : object.second)
       {
+        auto fileit = reverseMyFileIDs.find(range->fileID);
+        if (fileit == reverseMyFileIDs.end())
+        {
+          //std::cout << "FILEIT END!" << std::endl;
+          continue;
+        }
+          
+        if(output.filesAlreadyProcessed.count(fileit->second) == 1){
+          //std::cout << "FILEIT ALREADY INIT!" << std::endl;
+          continue;
+        }
+
+        //std::cout << "ALL GOOD, ADDING" << std::endl;
         auto it = locmap.find(range);
         if (it != locmap.end())
         {
@@ -607,7 +625,10 @@ unsigned GlobalMergeData::fileid(const std::string& filename)
   if (it != myFileIDs.end())
     return it->second;
 
-  return myFileIDs.emplace(filename, myNextFileID++).first->second;
+  unsigned ret = myFileIDs.emplace(filename, myNextFileID).first->second;
+  reverseMyFileIDs.emplace(myNextFileID,filename);
+  myNextFileID++;
+  return ret;
 }
 
 const GlobalMergeData::Range&

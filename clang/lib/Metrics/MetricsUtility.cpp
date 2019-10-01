@@ -10,6 +10,7 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
   if (decl == nullptr)
     return false;
 
+  // If this is a declaration and we can't find no definition, then we assume it's not an interface... we can't do much (unless we link or something)
   if (!decl->hasDefinition())
     return false;
 

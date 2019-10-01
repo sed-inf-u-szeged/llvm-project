@@ -55,6 +55,13 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   // Aggregate metrics.
   gmd.aggregate(output);
 
+  for (auto kv : gmd.myFileIDs)
+  {
+    output.filesAlreadyProcessed.insert(kv.first);
+    //std::cout << "file processed: " << kv.first << std::endl;
+  }
+  //std::cout << "INVOKE END" << std::endl;
+
   return true;
 }
 
@@ -87,4 +94,11 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
     gmd.debugPrintObjectRanges(std::cout);
 
   gmd.aggregate(output);
+
+  for (auto kv : gmd.myFileIDs)
+  {
+    output.filesAlreadyProcessed.insert(kv.first);
+    //std::cout << "file processed: " << kv.first << std::endl;
+  }
+  //std::cout << "INVOKE END" << std::endl;
 }

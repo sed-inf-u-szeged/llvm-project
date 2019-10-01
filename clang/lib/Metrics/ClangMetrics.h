@@ -125,6 +125,7 @@ private:
   };
 
   typedef std::unordered_map<std::string, unsigned> filemap_t;
+  typedef std::unordered_map<unsigned, std::string> reverse_filemap_t;
   typedef std::set<std::pair<unsigned, unsigned>>   codelines_t;
   typedef std::set<Range, RangeComparator>          rangeset_t;
 
@@ -202,9 +203,14 @@ private:
   // Value of the next ID to be assigned. Zero is reserved as an invalid ID.
   unsigned myNextFileID = 1;
 
-  // Maps unique integer IDs to filenames.
+public:
+  // Maps filenames to unique integer IDs. Must be public for linking.
   filemap_t myFileIDs;
 
+  // Maps unique integer IDs to filenames. Must be public for linking.
+  reverse_filemap_t reverseMyFileIDs;
+
+private:
   // Stores (file ID, code line) pairs in an ordered set.
   codelines_t myCodeLines;
 
