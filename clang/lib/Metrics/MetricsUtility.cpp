@@ -27,6 +27,11 @@ bool clang::metrics::isInterface(const clang::CXXRecordDecl* decl)
   // Iterate over the members.
   for (const Decl* member : decl->decls())
   {
+    if (const FunctionTemplateDecl *ftd = dyn_cast<FunctionTemplateDecl>(member))
+    {
+      // Handle the underlying method.
+      member = ftd->getTemplatedDecl();
+    }
     // If the member is a method.
     if (const CXXMethodDecl* md = dyn_cast<CXXMethodDecl>(member))
     {
