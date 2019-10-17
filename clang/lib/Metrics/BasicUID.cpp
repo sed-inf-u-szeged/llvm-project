@@ -2,6 +2,7 @@
 
 #include <clang/AST/ASTContext.h>
 #include <llvm/Support/raw_ostream.h>
+#include <clang/Metrics/RecursiveASTPrePostVisitor.h>
 
 
 using namespace clang;
@@ -27,6 +28,7 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
   if (decl)
   {
     const SourceManager& sm = pMyASTCtx->getSourceManager();
+    const DeclContext *parent = nullptr;
 
     // Functions can have their name mangled easily by the built-in mangler
     if (FunctionDecl::classof(decl))
@@ -46,7 +48,14 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
       else
         pMyMangleCtx->mangleName(cast<FunctionDecl>(decl), ss);
     }
-    else if (const DeclContext* parent = clang::dyn_cast_or_null<DeclContext>(decl))
+    else
+    {
+      if (const FriendDecl* fd = dyn_cast<FriendDecl>(decl))
+        parent = fd->getDeclContext();
+      else
+        parent = clang::dyn_cast_or_null<DeclContext>(decl);
+    }
+    if (parent)
     {
       // For non-functions the qualified name identifies the object - only need to take care of cases where decl
       // is within an anonymous namespace or class.
@@ -83,9 +92,21 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
         parent = parent->getParent();
       }
 
+      if (const FriendDecl *fd = dyn_cast<FriendDecl>(decl))
+      {
+        if (const Type* type = fd->getFriendType()->getType().getTypePtrOrNull())
+          if (const CXXRecordDecl* classDecl = type->getAsCXXRecordDecl())
+          {
+            decl = classDecl;
+          }
+      }
+
       // Append the qualified name to the stream
-      const NamedDecl* nd = cast<NamedDecl>(decl);
-      nd->printQualifiedName(ss);
+      const NamedDecl *nd = dyn_cast<NamedDecl>(decl);
+      if (nd)
+        nd->printQualifiedName(ss);
+      else
+        ss << "<missing qualified name>";
     }
     else
     {

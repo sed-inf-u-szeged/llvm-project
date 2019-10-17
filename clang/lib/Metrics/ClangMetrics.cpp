@@ -2,6 +2,7 @@
 
 #include <clang/Metrics/Output.h>
 #include <clang/Metrics/MetricsUtility.h>
+#include <clang/Metrics/RecursiveASTPrePostVisitor.h>
 
 using namespace clang;
 using namespace clang::metrics;
@@ -107,12 +108,12 @@ void ClangMetrics::aggregateMetrics()
   }
 }
 
-void GlobalMergeData::addDecl(const clang::Decl* decl)
+void GlobalMergeData::addDecl(const Decl* decl)
 {
   assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
 
   UIDFactory& factory = pMyAnalyzer->getUIDFactory();
-  
+
   Range::range_t type;
   Range::oper_t  oper;
   Object::kind_t  kind;
@@ -120,19 +121,19 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
 
   auto createTemporaryRange = [this](const Decl* decl)
   {
-      SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+    SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
 
-      SourceLocation start = decl->getLocStart();
-      SourceLocation end   = decl->getLocEnd();
+    SourceLocation start = decl->getLocStart();
+    SourceLocation end = decl->getLocEnd();
 
-      Range r;
-      r.fileID      = fileid(sm.getFilename(start));
-      r.lineBegin   = sm.getExpansionLineNumber(start);
-      r.lineEnd     = sm.getExpansionLineNumber(end);
-      r.columnBegin = sm.getExpansionColumnNumber(start);
-      r.columnEnd   = sm.getExpansionColumnNumber(end);
+    Range r;
+    r.fileID = fileid(sm.getFilename(start));
+    r.lineBegin = sm.getExpansionLineNumber(start);
+    r.lineEnd = sm.getExpansionLineNumber(end);
+    r.columnBegin = sm.getExpansionColumnNumber(start);
+    r.columnEnd = sm.getExpansionColumnNumber(end);
 
-      return r;
+    return r;
   };
 
   auto addNamespaceRange = [&](const DeclContext* pn)
@@ -164,10 +165,10 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
 
     const Decl *declParent = nullptr;
     const DeclContext* pn = d->getParent();
-    
+
     //Correctly get the parent even if it is a lambda
     const CXXRecordDecl *recordParent = dyn_cast_or_null<CXXRecordDecl>(pn);
-    if(recordParent && recordParent->isLambda())
+    if (recordParent && recordParent->isLambda())
       pn = recordParent->getParent();
 
     if (type == Range::DEFINITION && pn && isa<FunctionDecl>(pn)) {
@@ -221,49 +222,49 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
     type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
     addNamespaceRange(d->getParent());
   }
-  else if(auto d = dyn_cast<ObjCCategoryDecl>(decl))
+  else if (auto d = dyn_cast<ObjCCategoryDecl>(decl))
   {
     oper = Range::NO_OP;
     kind = d->IsClassExtension() ? Object::INTERFACE : Object::CLASS;
     type = Range::DEFINITION;
     addNamespaceRange(d->getParent());
   }
-  else if(auto d = dyn_cast<ObjCInterfaceDecl>(decl))
+  else if (auto d = dyn_cast<ObjCInterfaceDecl>(decl))
   {
     oper = Range::NO_OP;
     kind = Object::CLASS;
     type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
     addNamespaceRange(d->getParent());
   }
-  else if(auto d = dyn_cast<ObjCCategoryImplDecl>(decl))
+  else if (auto d = dyn_cast<ObjCCategoryImplDecl>(decl))
   {
     parent = getDefinition(factory.create(dyn_cast<Decl>(d->getCategoryDecl())));
     createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE);
     return;
   }
-  else if(auto d = dyn_cast<ObjCImplementationDecl>(decl))
+  else if (auto d = dyn_cast<ObjCImplementationDecl>(decl))
   {
     parent = getDefinition(factory.create(dyn_cast<Decl>(d->getClassInterface())));
     createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE);
     return;
   }
-  else if(auto d = dyn_cast<ObjCMethodDecl>(decl))
+  else if (auto d = dyn_cast<ObjCMethodDecl>(decl))
   {
     type = (d->isThisDeclarationADefinition() ? Range::DEFINITION : Range::DECLARATION);
     kind = Object::FUNCTION;
     oper = Range::NO_OP;
-    
+
     const DeclContext* parentContext = d->getParent();
-  
-    if(const ObjCCategoryImplDecl* impl = dyn_cast<ObjCCategoryImplDecl>(parentContext))
+
+    if (const ObjCCategoryImplDecl* impl = dyn_cast<ObjCCategoryImplDecl>(parentContext))
     {
       parentContext = impl->getCategoryDecl();
     }
-    else if(const ObjCImplementationDecl* impl = dyn_cast<ObjCImplementationDecl>(parentContext))
+    else if (const ObjCImplementationDecl* impl = dyn_cast<ObjCImplementationDecl>(parentContext))
     {
       parentContext = impl->getClassInterface();
     }
-    
+
     const Range* parentRange = getDefinition(factory.create(dyn_cast<Decl>(parentContext)));
     if (parentRange && parentRange->type == Range::DEFINITION)
     {
@@ -294,6 +295,27 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
     if (const DeclContext* pn = d->getParent())
       addNamespaceRange(pn);
   }
+  else if (auto d = dyn_cast<FriendDecl>(decl))
+  {
+    type = Range::DECLARATION;
+    oper = Range::NO_OP;
+
+    if (auto ft = d->getFriendType())
+    {
+      auto type = ft->getType();
+      if (type->isClassType())
+      {
+        kind = Object::CLASS;
+      }
+      else
+        return;
+    }
+    else
+    {
+      kind = Object::FUNCTION;
+    }
+
+  }
   else
   {
     return;
@@ -304,13 +326,11 @@ void GlobalMergeData::addDecl(const clang::Decl* decl)
   if (auto f = dyn_cast<FunctionDecl>(decl))
     if (const FunctionTemplateDecl* templateDecl = f->getDescribedFunctionTemplate())
       sourceRange = templateDecl->getSourceRange();
-  
+
   // Special case for templated classes
   if (auto r = dyn_cast<CXXRecordDecl>(decl))
     if (const ClassTemplateDecl* templateDecl = r->getDescribedClassTemplate())
       sourceRange = templateDecl->getSourceRange();
-  
-
 
   const Range& range = createRange(type, sourceRange, parent, oper);
   auto objit = myObjects.emplace(Object{ factory.create(decl), kind }, std::set<const Range*, RangePtrComparator>{}).first;
