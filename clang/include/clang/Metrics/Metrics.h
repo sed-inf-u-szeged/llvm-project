@@ -19,6 +19,9 @@ namespace clang
 
       //! McCabe's Cyclomatic Complexity (on a file level).
       unsigned McCC;
+
+      //! Positions for end
+      unsigned endLine, endColumn;
     };
 
     //! Class, struct and union level code metrics.

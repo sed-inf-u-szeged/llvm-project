@@ -14,7 +14,7 @@ const GlobalMergeData::Range GlobalMergeData::INVALID_RANGE = {};
 void ClangMetrics::aggregateMetrics()
 {
   using namespace std;
-
+  
   UIDFactory& factory = rMyOutput.getFactory();
   factory.onSourceOperationEnd(*pMyASTContext);
 
@@ -54,8 +54,16 @@ void ClangMetrics::aggregateMetrics()
     {
       // Get line numbers.
       FileID fid = sm.translateFile(fileEntiry);
+
       unsigned lineBegin = sm.getExpansionLineNumber(sm.getLocForStartOfFile(fid));
-      unsigned lineEnd   = sm.getExpansionLineNumber(sm.getLocForEndOfFile(fid));
+     
+      SourceLocation endLoc = sm.getLocForEndOfFile(fid);
+
+      // I don't know why we need this... maybe a bug in clang? eof sourceloc is sometimes invalid... and in all those cases the sloc with -1 offset is the correct one...
+      if(sm.getPresumedLoc(endLoc).isInvalid())
+        endLoc = endLoc.getLocWithOffset(-1);
+
+      unsigned lineEnd   = sm.getExpansionLineNumber(endLoc);
 
       // Create metrics object.
       FileMetrics& m = rMyOutput.myFileMetrics[fileEntiry->getName()];
@@ -63,6 +71,8 @@ void ClangMetrics::aggregateMetrics()
       // Calculate file LOC/LLOC.
       m.LOC = lineEnd - lineBegin + 1;
       m.LLOC = rMyGMD.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
+      m.endLine = lineEnd;
+      m.endColumn = sm.getExpansionColumnNumber(endLoc);
 
       // Load McCC from the map if there's an entry. Otherwise leave it at 1.
       m.McCC = 1;
