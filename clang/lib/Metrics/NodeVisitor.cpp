@@ -12,6 +12,50 @@ SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext *con,
                                      bool isDecl);
 } // namespace
 
+clang::FileID ClangMetrics::NodeVisitor::locToFileID(const clang::SourceLocation &loc)
+{
+  const SourceManager &sm = rMyMetrics.getASTContext()->getSourceManager();
+
+  if(loc.isMacroID())
+    return sm.getFileID(sm.getExpansionLoc(loc)); // we need this, as for code in macros, the spellingloc has no file attached to it
+  else
+    return sm.getFileID(loc);
+}
+
+bool ClangMetrics::NodeVisitor::TraverseDecl(Decl *decl)
+{
+  //std::cout << "clangmetrics traverseDecl (why is this getting called?)" << std::endl;
+  if(!decl)
+    return true;
+  
+  const SourceManager &sm = rMyMetrics.getASTContext()->getSourceManager();
+
+  const FileEntry *fileEntry = sm.getFileEntryForID(locToFileID(decl->getLocation()));
+  if(fileEntry)
+  {
+    auto fileName = fileEntry->getName();
+    
+    //only visit if this file was not yet visited
+    if(rMyMetrics.rMyOutput.filesAlreadyProcessed.count(fileName) == 0)
+    {
+      clang::RecursiveASTPrePostVisitor<NodeVisitor>::TraverseDecl(decl);
+      //std::cout << "clangmetrics traversed stuff" << std::endl;
+    }
+    else
+    {
+      //std::cout << "clangmetrics skipped" << std::endl;
+    }
+  }
+  else 
+  {
+    clang::RecursiveASTPrePostVisitor<NodeVisitor>::TraverseDecl(decl);
+    //std::cout << "clangmetrics traversed stuff" << std::endl;
+  }
+
+  
+  return true;
+}
+
 bool ClangMetrics::NodeVisitor::VisitCXXRecordDecl(const CXXRecordDecl *decl) {
   // Calculating Halstead for functions only.
   if (const DeclContext *f = getFunctionContext(decl)) {

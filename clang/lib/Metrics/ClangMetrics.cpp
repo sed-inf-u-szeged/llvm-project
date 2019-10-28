@@ -522,11 +522,12 @@ void GlobalMergeData::aggregate(Output& output) const
           //std::cout << "FILEIT END!" << std::endl;
           continue;
         }
-          
-        if(output.filesAlreadyProcessed.count(fileit->second) == 1){
+        
+        //this is now not needed as in the new design, aggregate only gets called once (ever)
+        /*if(output.filesAlreadyProcessed.count(fileit->second) == 1){
           //std::cout << "FILEIT ALREADY INIT!" << std::endl;
           continue;
-        }
+        }*/
 
         //std::cout << "ALL GOOD, ADDING" << std::endl;
         auto it = locmap.find(range);

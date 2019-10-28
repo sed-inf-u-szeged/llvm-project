@@ -2,6 +2,7 @@
 #define _ASTPREPOSTVISITOR_H_
 
 #include <vector>
+#include <clang/Metrics/Output.h>
 
 namespace clang
 {
@@ -43,7 +44,7 @@ class ASTPrePostTraverser
     using NodeList = std::vector<NodeInfo>;
 
   public:
-    ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
+    ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, clang::metrics::Output *output = nullptr, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
     ASTPrePostTraverser(const clang::ASTContext& astContext, clang::Decl* decl, ASTPrePostVisitor& visitor, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
     ASTPrePostTraverser(const clang::ASTContext& astContext, clang::Stmt* stmt, ASTPrePostVisitor& visitor, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
     void run();

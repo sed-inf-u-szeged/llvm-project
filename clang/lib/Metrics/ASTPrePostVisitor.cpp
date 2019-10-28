@@ -17,12 +17,13 @@ namespace
   class ASTMergeVisitor : public RecursiveASTVisitor<ASTMergeVisitor>
   {
     public:
-      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode)
+      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode,clang::metrics::Output *output = nullptr)
         : context (context)
         , post (post)
         , visitTemplateInstantiations (visitTemplateInstantiations)
         , visitImplicitCode (visitImplicitCode)
         , nodes (nodes)
+        , output(output)
       {
       }
 
@@ -59,12 +60,15 @@ namespace
         return visitTemplateInstantiations;
       }
 
+      bool TraverseDecl(clang::Decl *decl);
+
     private:
       const ASTContext &context;
       const bool post;
       const bool visitTemplateInstantiations;
       const bool visitImplicitCode;
       NodeList& nodes;
+      clang::metrics::Output *output;
   };
 
   void dumpNodeInfo(const NodeInfo& nodeInfo, ASTContext *context)
@@ -144,20 +148,66 @@ namespace
     return result;
   }
 
+  bool ASTMergeVisitor::TraverseDecl(clang::Decl * decl)
+  {
+    if(!output)
+      return RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
+
+    //std::cout << "clangmetrics traverseDecl (merge)" << std::endl;
+    if(!decl)
+      return true;
+    
+    const SourceManager &sm = context.getSourceManager();
+
+    SourceLocation loc = decl->getLocation();
+    FileID fileid;
+    if(loc.isMacroID())
+      fileid = sm.getFileID(sm.getExpansionLoc(loc)); // we need this, as for code in macros, the spellingloc has no file attached to it
+    else
+      fileid = sm.getFileID(loc);
+
+    const FileEntry *fileEntry = sm.getFileEntryForID(fileid);
+    
+
+    if(fileEntry)
+    {
+      auto fileName = fileEntry->getName();
+
+      //only visit if this file was not yet visited
+      if(output->filesAlreadyProcessed.count(fileName) == 0)
+      {
+        RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
+        //std::cout << "clangmetrics traversed stuff" << std::endl;
+      }
+      else
+      {
+        //std::cout << "clangmetrics skipped" << std::endl;
+      }
+    }
+    else 
+    {
+      clang::RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
+      //std::cout << "clangmetrics traversed stuff" << std::endl;
+    }
+    //cout << "clangmetrics traversed decl (mergevisitor)" << endl;
+
+    return true;
+  }
+
 }
 
 namespace clang
 {
 
-ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, const bool visitTemplateInstantiations, const bool visitImplicitCode)
+ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, clang::metrics::Output *output, const bool visitTemplateInstantiations, const bool visitImplicitCode)
   : astContext (astContext)
   , visitor (visitor)
 {
   if (astContext.getTranslationUnitDecl() != nullptr)
   {
     NodeList pre, post;
-    ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode).TraverseDecl(astContext.getTranslationUnitDecl());
-    ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode).TraverseDecl(astContext.getTranslationUnitDecl());
+    ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode,output).TraverseDecl(astContext.getTranslationUnitDecl()); //ezt kell overrideolni
+    ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode,output).TraverseDecl(astContext.getTranslationUnitDecl());
     merged = merge(pre, post);
   }
 }

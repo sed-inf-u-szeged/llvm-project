@@ -14,17 +14,18 @@ namespace clang
       class ClangMetricsAction::Consumer final : public clang::ASTConsumer
       {
       public:
-        Consumer(ClangMetricsAction& action) : myVisitor(action)
+        Consumer(ClangMetricsAction& action, Output& output) : myVisitor(action), output(output)
         {}
 
         void HandleTranslationUnit(clang::ASTContext& context)
         {
-          ASTPrePostTraverser traverser(context, myVisitor);
+          ASTPrePostTraverser traverser(context, myVisitor, &output);
           traverser.run();
         }
 
       private:
         NodeVisitor myVisitor;
+        Output& output;
       };
     }
   }

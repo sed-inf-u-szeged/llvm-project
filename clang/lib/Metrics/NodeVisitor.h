@@ -12,6 +12,9 @@ public:
   NodeVisitor(ClangMetrics& action) : rMyMetrics(action)
   {}
 
+  clang::FileID locToFileID(const clang::SourceLocation & loc);
+  bool TraverseDecl(Decl * decl);
+
   // Callbacks triggered when visiting a specific AST node.
   bool VisitCXXRecordDecl(const clang::CXXRecordDecl* decl);
   bool VisitFunctionDecl(const clang::FunctionDecl* decl);
@@ -161,8 +164,11 @@ private:
 
     return nullptr;
   }
-private:
+
+public:
   ClangMetrics& rMyMetrics;
+
+private:
   std::stack<const clang::Decl*> pCurrentFunctionDecl;
   std::unordered_set<void *> alreadyVisitedNodes;
 };

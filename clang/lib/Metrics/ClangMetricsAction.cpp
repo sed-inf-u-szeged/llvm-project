@@ -14,10 +14,15 @@ std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInsta
   rMyOutput.getFactory().onSourceOperationBegin(ci.getASTContext(), file);
   updateASTContext(ci.getASTContext());
   updateCurrentTU(file);
-  return std::unique_ptr<ASTConsumer>(new Consumer(*this));
+  return std::unique_ptr<ASTConsumer>(new Consumer(*this,output));
 }
 
 void ClangMetricsAction::EndSourceFileAction()
 {
   aggregateMetrics();
+  for (auto kv : gmd.myFileIDs)
+  {
+    output.filesAlreadyProcessed.insert(kv.first);
+    //std::cout << "file processed: " << kv.first << std::endl;
+  }
 }

@@ -49,7 +49,7 @@ namespace clang
       private:
         T myBegin, myEnd;
       };
-
+      
     public:
       //! Constructor.
       //!  \{param} idFactory reference to the UIDFactory object (note: it is the responsibility of the caller

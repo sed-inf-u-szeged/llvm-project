@@ -32,7 +32,7 @@ namespace clang
       public:
         //! Constructor.
         //!  \param output reference to the Output object where the results will be stored
-        ClangMetricsAction(Output& output, GlobalMergeData& data) : ClangMetrics(output, data)
+        ClangMetricsAction(Output& output, GlobalMergeData& data) : ClangMetrics(output, data), output(output), gmd(data)
         {}
 
       private:
@@ -46,6 +46,8 @@ namespace clang
         // ASTConsumer for the NodeVisitor.
         // See the Clang documentation for more info.
         class Consumer;
+        Output& output;
+        GlobalMergeData& gmd;
       };
     }
   }
