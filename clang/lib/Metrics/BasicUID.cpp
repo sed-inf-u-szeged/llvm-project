@@ -4,8 +4,8 @@
 #include <llvm/Support/raw_ostream.h>
 #include <clang/Metrics/RecursiveASTPrePostVisitor.h>
 
-
 using namespace clang;
+
 
 metrics::BasicUIDFactory::BasicUIDFactory()
   : pMyASTCtx (nullptr)
@@ -75,14 +75,15 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
         else if (CXXRecordDecl::classofKind(parent->getDeclKind()))
         {
           const CXXRecordDecl* cs = cast<CXXRecordDecl>(parent);
+
           if (cs->isAnonymousStructOrUnion())
           {
             // Put the filepath into the stream, prefixed by a "//".
             ss << "//" << sm.getFilename(cs->getLocation());
 
             // Also put the line info into the stream, as there can be multiple anonymous classes within the same file.
-            ss << "//" << sm.getExpansionLineNumber(cs->getLocStart()) << '_' << sm.getExpansionLineNumber(cs->getLocEnd());
-            ss << '_' << sm.getExpansionColumnNumber(cs->getLocStart()) << '_' << sm.getExpansionColumnNumber(cs->getLocEnd());
+            ss << "//" << sm.getExpansionLineNumber(cs->getOuterLocStart()) << '_' << sm.getExpansionLineNumber(cs->getEndLoc());
+            ss << '_' << sm.getExpansionColumnNumber(cs->getOuterLocStart()) << '_' << sm.getExpansionColumnNumber(cs->getEndLoc());
 
             break;
           }

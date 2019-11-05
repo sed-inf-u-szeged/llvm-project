@@ -548,9 +548,9 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
   rMyMetrics.rMyGMD.addDecl(decl);
 
   // Add the places where there is sure to be code.
-  rMyMetrics.rMyGMD.addCodeLine(decl->getLocStart());
+  rMyMetrics.rMyGMD.addCodeLine(decl->getBeginLoc());
   rMyMetrics.rMyGMD.addCodeLine(decl->getLocation());
-  rMyMetrics.rMyGMD.addCodeLine(decl->getLocEnd());
+  rMyMetrics.rMyGMD.addCodeLine(decl->getEndLoc());
 
   if(const TagDecl *td = dyn_cast_or_null<TagDecl>(decl))
     rMyMetrics.rMyGMD.addCodeLine(td->getBraceRange().getBegin());
@@ -558,7 +558,7 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
   // Handle semicolons.
   const SourceManager &sm = rMyMetrics.getASTContext()->getSourceManager();
   SourceLocation semiloc = findSemiAfterLocation(
-      decl->getLocEnd(), rMyMetrics.getASTContext(), false);
+      decl->getEndLoc(), rMyMetrics.getASTContext(), false);
 
   if (dyn_cast_or_null<FunctionDecl>(getFunctionContext(decl)) ||
       dyn_cast_or_null<ObjCMethodDecl>(getFunctionContext(decl))) {
@@ -615,8 +615,8 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt) {
     return false;
 
   // Add places where there is sure to be code.
-  rMyMetrics.rMyGMD.addCodeLine(stmt->getLocStart());
-  rMyMetrics.rMyGMD.addCodeLine(stmt->getLocEnd());
+  rMyMetrics.rMyGMD.addCodeLine(stmt->getBeginLoc());
+  rMyMetrics.rMyGMD.addCodeLine(stmt->getEndLoc());
 
   handleNLMetrics(stmt, true);
 
@@ -632,7 +632,7 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt) {
 
   if (!Expr::classof(stmt) || (parent && isa<CompoundStmt>(parent))) {
     if (const GlobalMergeData::Range *range =
-            rMyMetrics.rMyGMD.getParentRange(stmt->getLocStart()))
+            rMyMetrics.rMyGMD.getParentRange(stmt->getBeginLoc()))
       ++range->numberOfStatements;
 
     if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
@@ -641,11 +641,11 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt) {
   }
   // Handle semicolons.
   const SourceManager &sm = rMyMetrics.getASTContext()->getSourceManager();
-  // std::cout << "STMT visited at " << stmt->getLocStart().printToString(sm) <<
+  // std::cout << "STMT visited at " << stmt->getBeginLoc().printToString(sm) <<
   // " class: " << stmt->getStmtClassName() << " Expr::classof " <<
   // Expr::classof(stmt) << " parents.size = "<< parents.size() <<std::endl;
   SourceLocation semiloc = findSemiAfterLocation(
-      stmt->getLocEnd(), rMyMetrics.getASTContext(), false);
+      stmt->getEndLoc(), rMyMetrics.getASTContext(), false);
   handleSemicolon(sm, getFunctionContextFromStmt(*stmt), semiloc);
   return true;
 }
@@ -1374,7 +1374,7 @@ void ClangMetrics::NodeVisitor::increaseMcCCStmt(const Stmt *stmt) {
   const SourceManager &sm = rMyMetrics.getASTContext()->getSourceManager();
 
   // Increase per file McCC.
-  ++rMyMetrics.myMcCCByFiles[sm.getFileID(stmt->getLocStart())];
+  ++rMyMetrics.myMcCCByFiles[sm.getFileID(stmt->getBeginLoc())];
 
   const Decl *parentDecl = getDeclFromStmt(*stmt);
 
@@ -1845,21 +1845,21 @@ void ClangMetrics::NodeVisitor::handleSemicolon(const SourceManager &sm,
   if (clang::ObjCMethodDecl::classofKind(f->getDeclKind())) {
     const ObjCMethodDecl *fd = cast<ObjCMethodDecl>(f);
 
-    sl = sm.getExpansionLineNumber(fd->getLocStart());
-    sc = sm.getExpansionColumnNumber(fd->getLocStart());
-    el = sm.getExpansionLineNumber(fd->getLocEnd());
-    ec = sm.getExpansionColumnNumber(fd->getLocEnd());
+    sl = sm.getExpansionLineNumber(fd->getBeginLoc());
+    sc = sm.getExpansionColumnNumber(fd->getBeginLoc());
+    el = sm.getExpansionLineNumber(fd->getEndLoc());
+    ec = sm.getExpansionColumnNumber(fd->getEndLoc());
 
-    file = sm.getFileID(fd->getLocStart());
+    file = sm.getFileID(fd->getBeginLoc());
   } else if (clang::FunctionDecl::classofKind(f->getDeclKind())) {
     const FunctionDecl *fd = cast<FunctionDecl>(f);
 
-    sl = sm.getExpansionLineNumber(fd->getLocStart());
-    sc = sm.getExpansionColumnNumber(fd->getLocStart());
-    el = sm.getExpansionLineNumber(fd->getLocEnd());
-    ec = sm.getExpansionColumnNumber(fd->getLocEnd());
+    sl = sm.getExpansionLineNumber(fd->getBeginLoc());
+    sc = sm.getExpansionColumnNumber(fd->getBeginLoc());
+    el = sm.getExpansionLineNumber(fd->getEndLoc());
+    ec = sm.getExpansionColumnNumber(fd->getEndLoc());
 
-    file = sm.getFileID(fd->getLocStart());
+    file = sm.getFileID(fd->getBeginLoc());
   } else {
     return;
   }
@@ -1980,11 +1980,11 @@ void ClangMetrics::NodeVisitor::handleMethodRelatedHalsteadStuff(
 
   // Handle 'explicit' keyword for constructors and cast operators.
   if (CXXConstructorDecl::classof(decl) &&
-      cast<CXXConstructorDecl>(decl)->isExplicitSpecified())
+      cast<CXXConstructorDecl>(decl)->isExplicit())
     hs.add<Halstead::ExplicitOperator>();
 
   if (CXXConversionDecl::classof(decl) &&
-      cast<CXXConversionDecl>(decl)->isExplicitSpecified())
+      cast<CXXConversionDecl>(decl)->isExplicit())
     hs.add<Halstead::ExplicitOperator>();
 
   // Handle virtualness.

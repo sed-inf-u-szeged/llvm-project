@@ -136,8 +136,9 @@ void GlobalMergeData::addDecl(const Decl* decl)
   {
     SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
 
-    SourceLocation start = decl->getLocStart();
-    SourceLocation end = decl->getLocEnd();
+
+    SourceLocation start = decl->getBeginLoc();
+    SourceLocation end = decl->getEndLoc();
 
     Range r;
     r.fileID = fileid(sm.getFilename(start));

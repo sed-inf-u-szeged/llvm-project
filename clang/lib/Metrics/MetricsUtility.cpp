@@ -104,10 +104,18 @@ bool clang::manuallyExpandClassScopeFunctionSpecializationDecl(const clang::Clas
 
       //std::cout << "has: " << decl->hasExplicitTemplateArgs() << std::endl;
 
-      decl->getSpecialization()->setFunctionTemplateSpecialization(templDecl,TemplateArgumentList::CreateCopy(context,ArrayRef<TemplateArgument>(myTArgList))
-        ,nullptr,TSK_ExplicitSpecialization,&decl->templateArgs(),decl->getSpecialization()->getSourceRange().getBegin());
-      context.setClassScopeSpecializationPattern(decl->getSpecialization(),templDecl->getAsFunction());
+/* TODO
+      decl->getSpecialization()->setFunctionTemplateSpecialization(
+                templDecl,
+                TemplateArgumentList::CreateCopy(context,ArrayRef<TemplateArgument>(myTArgList)),
+                nullptr,
+                TSK_ExplicitSpecialization,
+                decl->getTemplateArgs(),
+                decl->getSpecialization()->getSourceRange().getBegin()
+      );
 
+      context.setClassScopeSpecializationPattern(decl->getSpecialization(),templDecl->getAsFunction());
+*/
       return true;
     }
   }
