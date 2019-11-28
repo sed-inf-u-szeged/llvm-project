@@ -185,29 +185,51 @@ namespace clang
     //! Namespace level code metrics.
     struct NamespaceMetrics
     {
+      struct RangeMetrics
+      {
+        //! Number of code lines of the namespace, including empty and comment lines; however, its subnamespaces are not included.
+        unsigned LOC = 0;
+
+        //! Number of code lines of the namespace, including empty and comment lines, as well as its subnamespaces.
+        unsigned TLOC = 0;
+
+        //! Number of non-empty and non-comment code lines of the namespace; however, its subnamespaces are not included.
+        unsigned LLOC = 0;
+
+        //! Number of non-empty and non-comment code lines of the namespace, including its subnamespaces.
+        unsigned TLLOC = 0;
+
+        //! Number of classes in the namespace; however, the classes of its subnamespaces are not included.
+        unsigned NCL = 0;
+
+        //! Number of enums in the namespace; however, the enums of its subnamespaces are not included.
+        unsigned NEN = 0;
+
+        //! Number of interfaces in the namespace; however, the interfaces of its subnamespaces are not included.
+        unsigned NIN = 0;
+
+        RangeMetrics& operator+=(const RangeMetrics& rhs)
+        {
+          LOC += rhs.LOC;
+          TLOC += rhs.TLOC;
+          LLOC += rhs.LLOC;
+          TLLOC += rhs.TLLOC;
+          NCL += rhs.NCL;
+          NEN += rhs.NEN;
+          NIN += rhs.NIN;
+          return *this;
+        }
+      };
+
       //! Name of the namespace in a human readable form.
       std::string name;
 
-      //! Number of code lines of the namespace, including empty and comment lines; however, its subnamespaces are not included.
-      unsigned LOC;
+      //! The total metrics of all namespace ranges added together.
+      RangeMetrics totalMetrics;
 
-      //! Number of code lines of the namespace, including empty and comment lines, as well as its subnamespaces.
-      unsigned TLOC;
+      //! The metrics of each namespace range individually, mapped by file name the range appeared in.
+      std::vector<std::pair<std::string, RangeMetrics>> metricsByFile;
 
-      //! Number of non-empty and non-comment code lines of the namespace; however, its subnamespaces are not included.
-      unsigned LLOC;
-
-      //! Number of non-empty and non-comment code lines of the namespace, including its subnamespaces.
-      unsigned TLLOC;
-
-      //! Number of classes in the namespace; however, the classes of its subnamespaces are not included.
-      unsigned NCL;
-
-      //! Number of enums in the namespace; however, the enums of its subnamespaces are not included.
-      unsigned NEN;
-
-      //! Number of interfaces in the namespace; however, the interfaces of its subnamespaces are not included.
-      unsigned NIN;
     };
   }
 }

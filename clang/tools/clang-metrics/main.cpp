@@ -158,13 +158,13 @@ void printNamespaces(const Output& output)
 
     out
       << m.name << sep
-      << m.LOC << sep
-      << m.TLOC << sep
-      << m.LLOC << sep
-      << m.TLLOC << sep
-      << m.NCL << sep
-      << m.NEN << sep
-      << m.NIN << endl;
+      << m.totalMetrics.LOC << sep
+      << m.totalMetrics.TLOC << sep
+      << m.totalMetrics.LLOC << sep
+      << m.totalMetrics.TLLOC << sep
+      << m.totalMetrics.NCL << sep
+      << m.totalMetrics.NEN << sep
+      << m.totalMetrics.NIN << endl;
   }
 
   cout << "  Namespace metrics written to 'Namespace-Metrics.csv'\n";

@@ -475,9 +475,9 @@ void GlobalMergeData::aggregate(Output& output) const
           if (itp->second->kind == Object::NAMESPACE)
           {
             if (object.first.kind == Object::CLASS)
-              ++output.myNamespaceMetrics[itp->second->uid].NCL;
+              ++output.myNamespaceMetrics[itp->second->uid].totalMetrics.NCL;
             else /* if INTERFACE */
-              ++output.myNamespaceMetrics[itp->second->uid].NIN;
+              ++output.myNamespaceMetrics[itp->second->uid].totalMetrics.NIN;
           }
         }
 
@@ -505,7 +505,7 @@ void GlobalMergeData::aggregate(Output& output) const
           assert(itp != myRangeMap.end() && "All ranges should be added to the range map.");
           if (itp->second->kind == Object::NAMESPACE)
           {
-            ++output.myNamespaceMetrics[itp->second->uid].NEN;
+            ++output.myNamespaceMetrics[itp->second->uid].totalMetrics.NEN;
           }
         }
 
@@ -520,7 +520,9 @@ void GlobalMergeData::aggregate(Output& output) const
     }
     else if (object.first.kind == Object::NAMESPACE)
     {
-      NamespaceMetrics& m = output.myNamespaceMetrics[object.first.uid];
+      NamespaceMetrics& namespaceMetrics = output.myNamespaceMetrics[object.first.uid];
+      namespaceMetrics.name = object.first.uid->getName();
+
       for (const Range* range : object.second)
       {
         auto fileit = reverseMyFileIDs.find(range->fileID);
@@ -536,16 +538,19 @@ void GlobalMergeData::aggregate(Output& output) const
           continue;
         }*/
 
-        //std::cout << "ALL GOOD, ADDING" << std::endl;
         auto it = locmap.find(range);
         if (it != locmap.end())
         {
-          m.name   = object.first.uid->getName();
-          m.LOC   += it->second.LOC;
-          m.LLOC  += it->second.LLOC;
-          m.TLOC  += it->second.TLOC;
-          m.TLLOC += it->second.TLLOC;
+          NamespaceMetrics::RangeMetrics rangeMetrics;
+          rangeMetrics.LOC   = it->second.LOC;
+          rangeMetrics.LLOC  = it->second.LLOC;
+          rangeMetrics.TLOC  = it->second.TLOC;
+          rangeMetrics.TLLOC = it->second.TLLOC;
+
+          // Add namespace metrics for this range only. Mapped to the file name.
+          namespaceMetrics.metricsByFile.push_back(std::make_pair(fileit->second, rangeMetrics));
         }
+
       }
     }
   }
