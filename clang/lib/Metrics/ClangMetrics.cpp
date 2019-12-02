@@ -47,10 +47,10 @@ void ClangMetrics::aggregateMetrics()
     std::vector<const FileEntry*> fileEntries;
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
-      if (rMyGMD.myFileIDs.find(it->first->getName().str()) != rMyGMD.myFileIDs.end())
-      {
+      //if (rMyGMD.myFileIDs.find(it->first->getName().str()) != rMyGMD.myFileIDs.end())
+      //{
         fileEntries.push_back(it->first);
-      }
+      //}
     }
 
     for (auto fileEntiry : fileEntries)
@@ -358,6 +358,9 @@ void GlobalMergeData::addCodeLine(SourceLocation loc)
 {
   assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
   SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+
+  if(loc.isMacroID())
+    loc = sm.getExpansionLoc(loc);
 
   unsigned fid = fileid(sm.getFilename(loc));
   if (fid == 0)
@@ -698,12 +701,19 @@ GlobalMergeData::createRange(Range::range_t type, const std::string& filename, u
 const GlobalMergeData::Range&
 GlobalMergeData::createRange(Range::range_t type, SourceLocation start, SourceLocation end, const Range* parent, Range::oper_t operation)
 {
+  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+
   if (start.isInvalid() || end.isInvalid())
     return INVALID_RANGE;
 
   assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
 
-  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+  if (start.isMacroID())
+  {
+    start = sm.getExpansionLoc(start);
+    end = sm.getExpansionLoc(end);
+  }
+
   return createRange(type, sm.getFilename(start), sm.getExpansionLineNumber(start),
     sm.getExpansionLineNumber(end), sm.getExpansionColumnNumber(start), sm.getExpansionColumnNumber(end), parent, operation);
 }

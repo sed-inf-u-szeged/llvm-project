@@ -255,8 +255,9 @@ bool ClangMetrics::NodeVisitor::VisitValueDecl(const ValueDecl *decl) {
       if (parents.begin() != parents.end()) {
         const Stmt *ds = parents.begin()->get<Stmt>();
         if (!ds || !DeclStmt::classof(ds)) {
-          if (!EnumConstantDecl::classof(decl)) {
-            //std::cout << "adding qualtype" << std::endl;
+          if (!EnumConstantDecl::classof(decl) && !isLambda(decl->getAsFunction())) {
+            /*std::cout << "adding qualtype" << std::endl;
+            decl->getType()->dump();*/
             handleQualType(hs, decl->getType(), true);
           }
         }

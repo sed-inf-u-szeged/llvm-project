@@ -123,6 +123,9 @@ bool clang::manuallyExpandClassScopeFunctionSpecializationDecl(const clang::Clas
 }
 
 bool clang::isLambda(const FunctionDecl *decl) {
+  if(!decl)
+    return false;
+
   const CXXRecordDecl *recordParent = dyn_cast_or_null<CXXRecordDecl>(decl->getParent());
   return recordParent && recordParent->isLambda();
 }
