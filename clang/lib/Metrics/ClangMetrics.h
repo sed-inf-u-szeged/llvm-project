@@ -383,7 +383,7 @@ private:
   std::unordered_map<const clang::DeclContext*, FunctionMetricsData> myFunctionMetrics;
 
   // Stores locations where there are semicolons. A single record is a pair of row/column within the file.
-  std::set<std::tuple<clang::FileID, unsigned, unsigned>> mySemicolonLocations;
+  std::set<std::tuple<clang::FileID, unsigned, unsigned, unsigned, unsigned>> mySemicolonLocations;
 
   // McCC per file. If a file has an McCC of 1, it won't be found in this map.
   // Note that the values stored here are one less than the final McCC.

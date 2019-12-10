@@ -563,7 +563,7 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
 
   if (dyn_cast_or_null<FunctionDecl>(getFunctionContext(decl)) ||
       dyn_cast_or_null<ObjCMethodDecl>(getFunctionContext(decl))) {
-    handleSemicolon(sm, getFunctionContext(decl), semiloc);
+    handleSemicolon(sm, getFunctionContext(decl), semiloc, decl->getEndLoc().isMacroID());
   }
 
   return true;
@@ -647,7 +647,7 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt) {
   // Expr::classof(stmt) << " parents.size = "<< parents.size() <<std::endl;
   SourceLocation semiloc = findSemiAfterLocation(
       stmt->getEndLoc(), rMyMetrics.getASTContext(), false);
-  handleSemicolon(sm, getFunctionContextFromStmt(*stmt), semiloc);
+  handleSemicolon(sm, getFunctionContextFromStmt(*stmt), semiloc,stmt->getEndLoc().isMacroID());
   return true;
 }
 
@@ -1104,6 +1104,10 @@ bool ClangMetrics::NodeVisitor::VisitCXXConstructExpr(
     const clang::CXXConstructExpr *stmt) {
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
+
+    if(stmt->getConstructionKind() != CXXConstructExpr::ConstructionKind::CK_Complete)
+      if (const FunctionDecl *callee = stmt->getConstructor())
+        hs.add<Halstead::FunctionOperator>(callee);
 
     // Iterate over the arguments.
     for (const Expr *arg : stmt->arguments()) {
@@ -1831,19 +1835,22 @@ UnifiedCXXOperator ClangMetrics::NodeVisitor::convertOverloadedOperator(
 
 void ClangMetrics::NodeVisitor::handleSemicolon(const SourceManager &sm,
                                                 const DeclContext *f,
-                                                SourceLocation semiloc) {
-  if (!f || semiloc.isInvalid())
+                                                SourceLocation semiloc,
+                                                bool isMacro){
+  if (!f || semiloc.isInvalid()) {
     return;
+  }
 
-  unsigned line = sm.getExpansionLineNumber(semiloc);
-  unsigned column = sm.getExpansionColumnNumber(semiloc);
+  unsigned line = sm.getSpellingLineNumber(semiloc);
+  unsigned column = sm.getSpellingColumnNumber(semiloc);
 
   unsigned sl, sc;
   unsigned el, ec;
 
   FileID file;
 
-  if (clang::ObjCMethodDecl::classofKind(f->getDeclKind())) {
+  if (clang::ObjCMethodDecl::classofKind(f->getDeclKind()))
+  {
     const ObjCMethodDecl *fd = cast<ObjCMethodDecl>(f);
 
     sl = sm.getExpansionLineNumber(fd->getBeginLoc());
@@ -1852,36 +1859,45 @@ void ClangMetrics::NodeVisitor::handleSemicolon(const SourceManager &sm,
     ec = sm.getExpansionColumnNumber(fd->getEndLoc());
 
     file = sm.getFileID(fd->getBeginLoc());
-  } else if (clang::FunctionDecl::classofKind(f->getDeclKind())) {
+  }
+  else if (clang::FunctionDecl::classofKind(f->getDeclKind()))
+  {
     const FunctionDecl *fd = cast<FunctionDecl>(f);
-
+    
     sl = sm.getExpansionLineNumber(fd->getBeginLoc());
     sc = sm.getExpansionColumnNumber(fd->getBeginLoc());
     el = sm.getExpansionLineNumber(fd->getEndLoc());
     ec = sm.getExpansionColumnNumber(fd->getEndLoc());
 
     file = sm.getFileID(fd->getBeginLoc());
-  } else {
+    
+  } else
+  {
     return;
   }
 
   // Ensure that the semicolon we found is within the range of the function.
-  if (!(sl <= line && line <= el))
-    return;
+  if (!isMacro)
+  {
+    if (!(sl <= line && line <= el))
+      return;
 
-  if (sl == line && !(sc < column))
-    return;
+    if (sl == line && !(sc < column))
+      return;
 
-  if (el == line && !(column < ec))
-    return;
+    if (el == line && !(column < ec))
+      return;
+  }
 
   // If this is the first time we see this semicolon, add it as an operator
   // and register it, so that it won't be counted multiple times.
-  auto it = rMyMetrics.mySemicolonLocations.find({file, line, column});
-  if (it == rMyMetrics.mySemicolonLocations.end()) {
+  // Because of macros, we also need sl and sc for indexing
+  auto it = rMyMetrics.mySemicolonLocations.find({file, line, column, sl, sc});
+  if (it == rMyMetrics.mySemicolonLocations.end())
+  {
     rMyMetrics.myFunctionMetrics[f]
         .hsStorage.add<Halstead::SemicolonOperator>();
-    rMyMetrics.mySemicolonLocations.emplace(file, line, column);
+    rMyMetrics.mySemicolonLocations.emplace(file, line, column,sl,sc);
   }
 }
 
@@ -2006,10 +2022,14 @@ namespace {
 SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext *Ctx,
                                      bool IsDecl) {
   const SourceManager &SM = Ctx->getSourceManager();
-  if (loc.isMacroID()) {
+  if(loc.isMacroID())
+  {
+    loc = SM.getSpellingLoc(loc);
+  }
+  /*if (loc.isMacroID()) {
     if (!Lexer::isAtEndOfMacroExpansion(loc, SM, Ctx->getLangOpts(), &loc))
       return SourceLocation();
-  }
+  }*/
   loc = Lexer::getLocForEndOfToken(loc, /*Offset=*/0, SM, Ctx->getLangOpts());
 
   // Break down the source location.
@@ -2018,8 +2038,10 @@ SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext *Ctx,
   // Try to load the file buffer.
   bool invalidTemp = false;
   StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
-  if (invalidTemp)
+  if (invalidTemp) {
     return SourceLocation();
+  }
+
 
   const char *tokenBegin = file.data() + locInfo.second;
 
@@ -2029,13 +2051,14 @@ SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext *Ctx,
   Token tok;
   lexer.LexFromRawLexer(tok);
   if (tok.isNot(tok::semi)) {
-    if (!IsDecl)
+    if (!IsDecl) {
       return SourceLocation();
+    }
+      
     // Declaration may be followed with other tokens; such as an __attribute,
     // before ending with a semicolon.
     return findSemiAfterLocation(tok.getLocation(), Ctx, /*IsDecl*/ true);
   }
-
   return tok.getLocation();
 }
 } // namespace

@@ -132,7 +132,7 @@ private:
   static UnifiedCXXOperator convertOverloadedOperator(const clang::CXXOperatorCallExpr& stmt);
 
   // Handle semicolons.
-  void handleSemicolon(const clang::SourceManager& sm, const clang::DeclContext* f, clang::SourceLocation semiloc);
+  void handleSemicolon(const clang::SourceManager& sm, const clang::DeclContext* f, clang::SourceLocation semiloc, bool isMacro = false);
 
   // Needed because local classes are not visited correctly (ValueDecl issue).
   void handleFunctionRelatedHalsteadStuff(HalsteadStorage& hs, const clang::FunctionDecl* decl);
