@@ -1386,7 +1386,15 @@ void ClangMetrics::NodeVisitor::increaseMcCCStmt(const Stmt *stmt) {
   // Check whether we've got a parent. Return if not.
   if (!parentDecl)
     return;
-
+  else if (clang::ConditionalOperator::classof(stmt) && !clang::FunctionDecl::classof(parentDecl))
+  {
+    // For conditional operators the result from getDeclFromStmt is not always the parent function.
+    if (const DeclContext* pc = parentDecl->getParentFunctionOrMethod())
+      parentDecl = cast<Decl>(pc);
+    else
+      return;
+  }
+    
   // Check whether it's a function or not. Increase the McCC by one if it is.
   if (clang::ObjCMethodDecl::classof(parentDecl))
     ++rMyMetrics.myFunctionMetrics[cast<ObjCMethodDecl>(parentDecl)].McCC;
