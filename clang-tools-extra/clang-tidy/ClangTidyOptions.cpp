@@ -217,7 +217,10 @@ FileOptionsProvider::FileOptionsProvider(
     const ClangTidyOptions &OverrideOptions,
     const FileOptionsProvider::ConfigFileHandlers &ConfigHandlers)
     : DefaultOptionsProvider(GlobalOptions, DefaultOptions),
-      OverrideOptions(OverrideOptions), ConfigHandlers(ConfigHandlers) {}
+      OverrideOptions(OverrideOptions), ConfigHandlers(ConfigHandlers) {
+  if (!FS)
+    FS = llvm::vfs::getRealFileSystem();
+}
 
 // FIXME: This method has some common logic with clang::format::getStyle().
 // Consider pulling out common bits to a findParentFileWithName function or
