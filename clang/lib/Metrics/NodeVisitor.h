@@ -25,6 +25,7 @@ public:
   bool VisitCXXMethodDecl(const clang::CXXMethodDecl* decl);
   bool VisitEnumDecl(const clang::EnumDecl* decl);
   bool VisitValueDecl(const clang::ValueDecl* decl);
+  bool VisitEnumConstantDecl(const clang::EnumConstantDecl * decl);
   bool VisitVarDecl(const clang::VarDecl* decl);
   bool VisitFieldDecl(const clang::FieldDecl* decl);
   bool VisitAccessSpecDecl(const clang::AccessSpecDecl* decl);
@@ -47,7 +48,10 @@ public:
   bool VisitIfStmt(const clang::IfStmt* stmt);
   bool VisitForStmt(const clang::ForStmt* stmt);
   bool VisitCXXForRangeStmt(const clang::CXXForRangeStmt* stmt);
+  bool VisitCompoundStmt(const clang::CompoundStmt * stmt);
   bool VisitWhileStmt(const clang::WhileStmt* stmt);
+  bool VisitConditionalOperator(const clang::ConditionalOperator * op);
+  bool VisitParenExpr(const clang::ParenExpr * expr);
   bool VisitDoStmt(const clang::DoStmt* stmt);
   bool VisitSwitchStmt(const clang::SwitchStmt* stmt);
   bool VisitCaseStmt(const clang::CaseStmt* stmt);
@@ -57,6 +61,8 @@ public:
   bool VisitLabelStmt(const clang::LabelStmt* stmt);
   bool VisitGotoStmt(const clang::GotoStmt* stmt);
   bool VisitCXXTryStmt(const clang::CXXTryStmt* stmt);
+  bool VisitArraySubscriptExpr(const clang::ArraySubscriptExpr * expr);
+  bool VisitInitListExpr(const clang::InitListExpr * expr);
   bool VisitCXXCatchStmt(const clang::CXXCatchStmt* stmt);
   bool VisitCXXThrowExpr(const clang::CXXThrowExpr* stmt);
   bool VisitReturnStmt(const clang::ReturnStmt* stmt);
@@ -90,7 +96,7 @@ public:
   bool VisitObjCMessageExpr(const clang::ObjCMessageExpr* stmt);
   //bool VisitCompoundLiteralExpr(const clang::CompoundLiteralExpr* stmt); <-- TODO: find out what it is
 
-  bool VisitConditionalOperator(const clang::ConditionalOperator* op) { increaseMcCCStmt(op); return true; }
+  //bool VisitConditionalOperator(const clang::ConditionalOperator* op) {  return true; }
   bool VisitBinaryOperator(const clang::BinaryOperator* op);
   bool VisitUnaryOperator(const clang::UnaryOperator* op);
   bool VisitClassScopeFunctionSpecializationDecl(const clang::ClassScopeFunctionSpecializationDecl* decl);
@@ -131,8 +137,8 @@ private:
   // Helper function for converting Clang's overloaded operator type to UnifiedCXXOperator.
   static UnifiedCXXOperator convertOverloadedOperator(const clang::CXXOperatorCallExpr& stmt);
 
-  // Handle semicolons.
-  void handleSemicolon(const clang::SourceManager& sm, const clang::DeclContext* f, clang::SourceLocation semiloc, bool isMacro = false);
+  // Handle semicolons. Returns true if it added one (as halstead operator)
+  bool handleSemicolon(const clang::SourceManager& sm, const clang::DeclContext* f, clang::SourceLocation semiloc, bool isMacro = false);
 
   // Needed because local classes are not visited correctly (ValueDecl issue).
   void handleFunctionRelatedHalsteadStuff(HalsteadStorage& hs, const clang::FunctionDecl* decl);
@@ -171,4 +177,5 @@ public:
 private:
   std::stack<const clang::Decl*> pCurrentFunctionDecl;
   std::unordered_set<void *> alreadyVisitedNodes;
+  clang::SourceLocation lastFieldBeginLoc;
 };

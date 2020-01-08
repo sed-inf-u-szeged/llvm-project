@@ -65,6 +65,13 @@ HALSTEAD_AUTODERIVE(ObjCInstanceMethodOperator);
 HALSTEAD_AUTODERIVE(ObjCClassMethodOperator);
 HALSTEAD_AUTODERIVE(ObjCMessageOperator);
 HALSTEAD_AUTODERIVE(UndeclaredFunctionOperator);
+HALSTEAD_AUTODERIVE(SubscriptOperator);
+HALSTEAD_AUTODERIVE(ArrayTypeSquareBrackets);
+HALSTEAD_AUTODERIVE(CompoundStmtBraces);
+HALSTEAD_AUTODERIVE(ConditionalOperator);
+HALSTEAD_AUTODERIVE(ParenthesesExpr);
+
+
 
 // More specific operator definitions
 HALSTEAD_DERIVE(AccessSpecDeclOperator, AccessSpecDecl)
