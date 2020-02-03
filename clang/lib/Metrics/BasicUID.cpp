@@ -95,11 +95,13 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
 
       if (const FriendDecl *fd = dyn_cast<FriendDecl>(decl))
       {
-        if (const Type* type = fd->getFriendType()->getType().getTypePtrOrNull())
-          if (const CXXRecordDecl* classDecl = type->getAsCXXRecordDecl())
-          {
-            decl = classDecl;
-          }
+        const TypeSourceInfo* typeSourceinfo = fd->getFriendType();
+        if (typeSourceinfo != nullptr)
+          if (const Type* type = typeSourceinfo->getType().getTypePtrOrNull())
+            if (const CXXRecordDecl* classDecl = type->getAsCXXRecordDecl())
+            {
+              decl = classDecl;
+            }
       }
 
       // Append the qualified name to the stream
