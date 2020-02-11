@@ -47,10 +47,10 @@ void ClangMetrics::aggregateMetrics()
     std::vector<const FileEntry*> fileEntries;
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
-      //if (rMyGMD.myFileIDs.find(it->first->getName().str()) != rMyGMD.myFileIDs.end())
-      //{
+      if (rMyGMD.myFileIDs.find(it->first->getName().str()) != rMyGMD.myFileIDs.end())
+      {
         fileEntries.push_back(it->first);
-      //}
+      }
     }
 
     for (auto fileEntiry : fileEntries)
