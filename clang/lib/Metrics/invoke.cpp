@@ -48,6 +48,7 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   if (tool.run(factory.get()))
     return false;
 
+  std::cout << "clang-metrics finished processing all files, now aggregating results..." << std::endl;
   // Do debug print.
   if (options.enableRangeDebugPrint)
     gmd.debugPrintObjectRanges(std::cout);

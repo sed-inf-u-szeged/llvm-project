@@ -11,6 +11,7 @@ using namespace metrics::detail;
 
 std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInstance& ci, StringRef file)
 {
+  std::cout << "clang-metrics processing file: " << file.str() << " ..." << std::endl;
   rMyOutput.getFactory().onSourceOperationBegin(ci.getASTContext(), file);
   updateASTContext(ci.getASTContext());
   updateCurrentTU(file);
