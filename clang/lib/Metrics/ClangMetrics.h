@@ -379,6 +379,12 @@ private:
   // Print debug info?
   bool myDebugPrintAfterVisit = false;
 
+public:
+  // This will make the clang-metrics print what is it exactly doing during analysis (which files its processing, etc)
+  // This is set with the InvokeOptions
+  bool shouldPrintTracingInfo = false;
+
+private:
   // Contains function metrics calculated per TU.
   std::unordered_map<const clang::DeclContext*, FunctionMetricsData> myFunctionMetrics;
 

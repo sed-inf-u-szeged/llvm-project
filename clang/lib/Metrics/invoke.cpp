@@ -33,6 +33,7 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
     {
       detail::ClangMetricsAction* ptr = new detail::ClangMetricsAction(rMyOutput, rMyData);
       ptr->debugPrintHalsteadAfterVisit(rMyOptions.enableHalsteadDebugPrint);
+      ptr->shouldPrintTracingInfo = rMyOptions.enableProcessingTracePrint;
       return ptr;
     }
 
@@ -48,7 +49,10 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   if (tool.run(factory.get()))
     return false;
 
-  std::cout << "clang-metrics finished processing all files, now aggregating results..." << std::endl;
+  if (options.enableProcessingTracePrint) {
+    std::cout << "Clang-metrics has finished processing all files, now aggregating results... " << std::endl;
+  }
+
   // Do debug print.
   if (options.enableRangeDebugPrint)
     gmd.debugPrintObjectRanges(std::cout);
@@ -59,9 +63,7 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   for (auto kv : gmd.myFileIDs)
   {
     output.filesAlreadyProcessed.insert(kv.first);
-    //std::cout << "file processed: " << kv.first << std::endl;
   }
-  //std::cout << "INVOKE END" << std::endl;
 
   return true;
 }
@@ -99,7 +101,5 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
   for (auto kv : gmd.myFileIDs)
   {
     output.filesAlreadyProcessed.insert(kv.first);
-    //std::cout << "file processed: " << kv.first << std::endl;
   }
-  //std::cout << "INVOKE END" << std::endl;
 }

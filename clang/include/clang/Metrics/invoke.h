@@ -30,6 +30,10 @@ namespace clang
       //! If true, range debug data (used for LOC calculation) will be printed to the standard output at the end of the calculation.
       //! Default value is false.
       bool enableRangeDebugPrint = false;
+
+      //! If true, the currently processed .ast files are printed so that if the
+      //! program crashes, we can see where it crashed exactly.
+      bool enableProcessingTracePrint = false;
     };
 
     //! Invokes metrics calculation with the given arguments.
