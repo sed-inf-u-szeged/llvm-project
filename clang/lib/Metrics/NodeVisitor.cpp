@@ -687,6 +687,11 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt)
 }
 
 void ClangMetrics::NodeVisitor::VisitEndStmt(const clang::Stmt *stmt) {
+  // At the end of the lambda expression if it had a MethodDecl we must explicitly call VisitEndDecl, to remove it from the pCurrentFunctionDecl stack.
+  if (const LambdaExpr *le = dyn_cast_or_null<LambdaExpr>(stmt))
+    if (CXXMethodDecl *md = le->getCallOperator())
+      VisitEndDecl(md);
+
   handleNLMetrics(stmt, false);
 }
 
@@ -760,41 +765,20 @@ bool ClangMetrics::NodeVisitor::VisitLambdaExpr(const clang::LambdaExpr *stmt) {
   if (rd && md)
   {
     TraverseCXXMethodDecl(md);
-    //TraverseCXXRecordDecl(rd);
-    //VisitEndDecl(rd);
     if (const DeclContext *f = getFunctionContextFromStmt(*stmt))
     {
-      auto itInit = stmt->capture_init_begin();
       for (auto cap : stmt->captures())
       {
-        if (cap.capturesThis())
+        if (cap.isExplicit())
         {
-          rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::ThisExprOperator>();
+          if(cap.getCaptureKind() == clang::LambdaCaptureKind::LCK_ByRef)
+            rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::LV_REF);
         }
-        else if (cap.isExplicit())
-        {
-          if (stmt->isInitCapture(&cap) || true)
-          {
-            if (itInit == stmt->capture_init_end())
-            {
-              //std::cout << "ERROR, init iterator ended unexpectedly..." << std::endl;
-              break;
-            }
-            //(*itInit)->dump();
-            if(cap.getCaptureKind() == clang::LambdaCaptureKind::LCK_ByRef)
-              rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::LV_REF);
-
-            TraverseStmt(*itInit);
-          }
-        }
-        ++itInit;
       }
       //if I write [&] it captures many variables implicitly... so if it captures at least 1, then it must have & capture
       if(stmt->implicit_capture_begin() != stmt->implicit_capture_end())
         rMyMetrics.myFunctionMetrics[f].hsStorage.add<Halstead::QualifierOperator>(Halstead::QualifierOperator::LV_REF);
     }
-
-    VisitEndDecl(md);
   }
   //std::cout << "Lambda visit ended" << std::endl;
   return true;
