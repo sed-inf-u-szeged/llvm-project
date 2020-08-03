@@ -787,6 +787,10 @@ bool ClangMetrics::NodeVisitor::VisitLambdaExpr(const clang::LambdaExpr *stmt) {
 bool ClangMetrics::NodeVisitor::VisitIfStmt(const clang::IfStmt *stmt) {
   increaseMcCCStmt(stmt);
 
+  rMyMetrics.rMyGMD.addCodeLine(stmt->getIfLoc());
+  if (stmt->getElse() != nullptr)
+    rMyMetrics.rMyGMD.addCodeLine(stmt->getElseLoc());
+
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
     hs.add<Halstead::IfOperator>();
