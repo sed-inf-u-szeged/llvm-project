@@ -23,7 +23,7 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   class Factory : public FrontendActionFactory
   {
   public:
-    Factory(Output& output, detail::GlobalMergeData& data, const InvokeOptions& options) :
+    Factory(Output& output, detail::GlobalMergeData_ThreadSafe& data, const InvokeOptions& options) :
       rMyOutput(output),
       rMyData(data),
       rMyOptions(options)
@@ -39,12 +39,12 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
 
   private:
     Output& rMyOutput;
-    detail::GlobalMergeData& rMyData;
+    detail::GlobalMergeData_ThreadSafe& rMyData;
     const InvokeOptions& rMyOptions;
   };
 
   // Create factory and invoke main program.
-  detail::GlobalMergeData gmd;
+  detail::GlobalMergeData_ThreadSafe gmd;
   std::unique_ptr<Factory> factory(new Factory(output, gmd, options));
   if (tool.run(factory.get()))
     return false;
@@ -53,24 +53,26 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
     std::cout << "Clang-metrics has finished processing all files, now aggregating results... " << std::endl;
   }
 
-  // Do debug print.
-  if (options.enableRangeDebugPrint)
-    gmd.debugPrintObjectRanges(std::cout);
+  gmd.call([&](detail::GlobalMergeData& mergeData) {
+    // Do debug print.
+    if (options.enableRangeDebugPrint)
+      mergeData.debugPrintObjectRanges(std::cout);
 
-  // Aggregate metrics.
-  gmd.aggregate(output);
+    // Aggregate metrics.
+    mergeData.aggregate(output);
 
-  for (auto kv : gmd.myFileIDs)
-  {
-    output.filesAlreadyProcessed.insert(kv.first);
-  }
+    for (auto kv : mergeData.myFileIDs)
+    {
+      output.filesAlreadyProcessed.insert(kv.first);
+    }
+  });
 
   return true;
 }
 
 void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options)
 {
-  detail::GlobalMergeData gmd;
+  detail::GlobalMergeData_ThreadSafe gmd;
   detail::ClangMetrics clangMetrics(output, gmd, context);
   clangMetrics.debugPrintHalsteadAfterVisit(options.enableHalsteadDebugPrint);
 
@@ -92,14 +94,17 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
 
   clangMetrics.aggregateMetrics();
 
-  // Do debug print.
-  if (options.enableRangeDebugPrint)
-    gmd.debugPrintObjectRanges(std::cout);
+  gmd.call([&](detail::GlobalMergeData& mergeData) {
+    // Do debug print.
+    if (options.enableRangeDebugPrint)
+      mergeData.debugPrintObjectRanges(std::cout);
 
-  gmd.aggregate(output);
+    // Aggregate metrics.
+    mergeData.aggregate(output);
 
-  for (auto kv : gmd.myFileIDs)
-  {
-    output.filesAlreadyProcessed.insert(kv.first);
-  }
+    for (auto kv : mergeData.myFileIDs)
+    {
+      output.filesAlreadyProcessed.insert(kv.first);
+    }
+  });
 }

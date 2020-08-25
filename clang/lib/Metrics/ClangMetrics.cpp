@@ -47,10 +47,12 @@ void ClangMetrics::aggregateMetrics()
     std::vector<const FileEntry*> fileEntries;
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
-      if (rMyGMD.myFileIDs.find(it->first->getName().str()) != rMyGMD.myFileIDs.end())
-      {
-        fileEntries.push_back(it->first);
-      }
+      rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+        if (mergeData.myFileIDs.find(it->first->getName().str()) != mergeData.myFileIDs.end())
+        {
+          fileEntries.push_back(it->first);
+        }
+      });
     }
 
     for (auto fileEntiry : fileEntries)
@@ -73,7 +75,9 @@ void ClangMetrics::aggregateMetrics()
 
       // Calculate file LOC/LLOC.
       m.LOC = lineEnd - lineBegin + 1;
-      m.LLOC = rMyGMD.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
+      rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+        m.LLOC = mergeData.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
+      });
       m.endLine = lineEnd;
       m.endColumn = sm.getExpansionColumnNumber(endLoc);
 

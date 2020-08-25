@@ -21,7 +21,10 @@ std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInsta
 
 void ClangMetricsAction::EndSourceFileAction() {
   aggregateMetrics();
-  for (auto kv : gmd.myFileIDs) {
-    output.filesAlreadyProcessed.insert(kv.first);
-  }
+  gmd.call([&](detail::GlobalMergeData& mergeData) {
+    for (auto kv : mergeData.myFileIDs) {
+      output.filesAlreadyProcessed.insert(kv.first);
+    }
+  });
+
 }

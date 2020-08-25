@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <stack>
+#include <mutex>
 
 namespace clang {
 
@@ -225,6 +226,20 @@ private:
   rangemap_t myRangeMap;
 };
 
+class GlobalMergeData_ThreadSafe
+{
+  GlobalMergeData globalMergeData;
+  std::recursive_mutex globalMergeDataMutex;
+
+public:
+  GlobalMergeData_ThreadSafe() {}
+  template <class Operation>
+  auto call(Operation o) -> decltype(o(globalMergeData))
+  {
+    std::lock_guard<std::recursive_mutex> lock(globalMergeDataMutex);
+    return o(globalMergeData);
+  }
+};
 
 class ClangMetrics
 {
@@ -241,24 +256,28 @@ public:
   //! Constructor.
   //!  \param output reference to the Output object where the results will be stored
   //!  \param context the AST context
-  ClangMetrics(Output& output, GlobalMergeData& data, ASTContext& context) :
+  ClangMetrics(Output& output, GlobalMergeData_ThreadSafe& data, ASTContext& context) :
     rMyOutput(output),
     myCurrentTU(""),
     rMyGMD(data),
     pMyASTContext(&context)
   {
-    rMyGMD.setAnalyzer(this);
+    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      mergeData.setAnalyzer(this);
+    });
   }
 
   //! Constructor.
   //!  \param output reference to the Output object where the results will be stored
-  ClangMetrics(Output& output, GlobalMergeData& data) :
+  ClangMetrics(Output& output, GlobalMergeData_ThreadSafe& data) :
     rMyOutput(output),
     myCurrentTU(""),
     rMyGMD(data),
     pMyASTContext(nullptr)
   {
-    rMyGMD.setAnalyzer(this);
+    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      mergeData.setAnalyzer(this);
+    });
   }
 
   //! If set to true, debug information will be printed to the standard output after
@@ -371,7 +390,7 @@ private:
 
 private:
   // Reference to the global state.
-  GlobalMergeData& rMyGMD;
+  GlobalMergeData_ThreadSafe& rMyGMD;
 
   // The AST context.
   ASTContext* pMyASTContext;

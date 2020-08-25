@@ -568,16 +568,18 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
   }
 
   // Add it to the GMD.
-  rMyMetrics.rMyGMD.addDecl(decl);
+  rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+    mergeData.addDecl(decl);
 
-  // Add the places where there is sure to be code.
-  rMyMetrics.rMyGMD.addCodeLine(decl->getBeginLoc());
-  rMyMetrics.rMyGMD.addCodeLine(decl->getLocation());
-  rMyMetrics.rMyGMD.addCodeLine(decl->getEndLoc());
+    // Add the places where there is sure to be code.
+    mergeData.addCodeLine(decl->getBeginLoc());
+    mergeData.addCodeLine(decl->getLocation());
+    mergeData.addCodeLine(decl->getEndLoc());
 
-  if(const TagDecl *td = dyn_cast_or_null<TagDecl>(decl))
-    rMyMetrics.rMyGMD.addCodeLine(td->getBraceRange().getBegin());
-
+    if (const TagDecl* td = dyn_cast_or_null<TagDecl>(decl))
+      mergeData.addCodeLine(td->getBraceRange().getBegin());
+  });
+  
   // Handle semicolons.
   const SourceManager &sm = rMyMetrics.getASTContext()->getSourceManager();
   SourceLocation semiloc = findSemiAfterLocation(
@@ -645,8 +647,10 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt)
     return false;
 
   // Add places where there is sure to be code.
-  rMyMetrics.rMyGMD.addCodeLine(stmt->getBeginLoc());
-  rMyMetrics.rMyGMD.addCodeLine(stmt->getEndLoc());
+  rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+    mergeData.addCodeLine(stmt->getBeginLoc());
+    mergeData.addCodeLine(stmt->getEndLoc());
+  });
 
   handleNLMetrics(stmt, true);
 
@@ -672,9 +676,11 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt)
     // We are only interested in 'true' statements, not subexpressions.
   if (!Expr::classof(stmt) || semicolonAdded) {
     //std::cout << "Increasing NOS" << std::endl;
-    if (const GlobalMergeData::Range *range =
-            rMyMetrics.rMyGMD.getParentRange(stmt->getBeginLoc()))
-      ++range->numberOfStatements;
+    rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      if (const GlobalMergeData::Range* range =
+        mergeData.getParentRange(stmt->getBeginLoc()))
+        ++range->numberOfStatements;
+    });
 
     if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
       ++rMyMetrics.myFunctionMetrics[f].NOS;
@@ -787,9 +793,11 @@ bool ClangMetrics::NodeVisitor::VisitLambdaExpr(const clang::LambdaExpr *stmt) {
 bool ClangMetrics::NodeVisitor::VisitIfStmt(const clang::IfStmt *stmt) {
   increaseMcCCStmt(stmt);
 
-  rMyMetrics.rMyGMD.addCodeLine(stmt->getIfLoc());
-  if (stmt->getElse() != nullptr)
-    rMyMetrics.rMyGMD.addCodeLine(stmt->getElseLoc());
+  rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+    mergeData.addCodeLine(stmt->getIfLoc());
+    if (stmt->getElse() != nullptr)
+      mergeData.addCodeLine(stmt->getElseLoc());
+  });
 
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {
     HalsteadStorage &hs = rMyMetrics.myFunctionMetrics[f].hsStorage;
