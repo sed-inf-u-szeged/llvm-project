@@ -11,6 +11,14 @@ namespace clang
   class Stmt;
   class Type;
 
+  namespace metrics
+  {
+    namespace detail
+    {
+      class GlobalMergeData_ThreadSafe;
+    }
+  }
+
 class ASTPrePostVisitor
 {
   public:
@@ -44,7 +52,7 @@ class ASTPrePostTraverser
     using NodeList = std::vector<NodeInfo>;
 
   public:
-    ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, clang::metrics::Output *output = nullptr, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
+    ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd = nullptr, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
     ASTPrePostTraverser(const clang::ASTContext& astContext, clang::Decl* decl, ASTPrePostVisitor& visitor, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
     ASTPrePostTraverser(const clang::ASTContext& astContext, clang::Stmt* stmt, ASTPrePostVisitor& visitor, bool visitTemplateInstantiations = false, bool visitImplicitCode = false);
     void run();

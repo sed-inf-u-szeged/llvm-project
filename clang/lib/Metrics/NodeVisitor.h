@@ -13,7 +13,6 @@ public:
   {}
 
   clang::FileID locToFileID(const clang::SourceLocation & loc);
-  bool TraverseDecl(Decl * decl);
 
   // Callbacks triggered when visiting a specific AST node.
   bool VisitCXXRecordDecl(const clang::CXXRecordDecl* decl);

@@ -15,27 +15,34 @@ void ClangMetrics::aggregateMetrics()
 {
   using namespace std;
   
-  UIDFactory& factory = rMyOutput.getFactory();
+  UIDFactory& factory = getUIDFactory();
   factory.onSourceOperationEnd(*pMyASTContext);
 
   // Function metrics:
   for (auto& met : myFunctionMetrics)
   {
     auto declaration = cast<Decl>(met.first);
-    FunctionMetrics& m = rMyOutput.myFunctionMetrics[factory.create(declaration)];
-
+    shared_ptr<UID> functionUID = factory.create(declaration);
+    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      mergeData.rMyOutput.myFunctionMetrics[functionUID];
+    });
+    
     if (declaration != nullptr &&
         declaration->getAsFunction() != nullptr &&
         declaration->getAsFunction()->isThisDeclarationADefinition())
     {
-      m.McCC = met.second.McCC;
-      m.H_Operators  = met.second.hsStorage.getOperatorCount();
-      m.H_Operands   = met.second.hsStorage.getOperandCount();
-      m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
-      m.HD_Operands  = met.second.hsStorage.getDistinctOperandCount();
-      m.NOS          = met.second.NOS;
-      m.NL           = met.second.NL.getNestingLevel();
-      m.NLE          = met.second.NLE.getNestingLevel();
+      rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+        FunctionMetrics& m = mergeData.rMyOutput.myFunctionMetrics.at(functionUID);
+        m.McCC = met.second.McCC;
+        m.H_Operators = met.second.hsStorage.getOperatorCount();
+        m.H_Operands = met.second.hsStorage.getOperandCount();
+        m.HD_Operators = met.second.hsStorage.getDistinctOperatorCount();
+        m.HD_Operands = met.second.hsStorage.getDistinctOperandCount();
+        m.NOS = met.second.NOS;
+        m.NL = met.second.NL.getNestingLevel();
+        m.NLE = met.second.NLE.getNestingLevel();
+      });
+
     }
   }
 
@@ -43,7 +50,10 @@ void ClangMetrics::aggregateMetrics()
   {
     SourceManager& sm = pMyASTContext->getSourceManager();
 
-    FileMetrics& tum = rMyOutput.myTranslationUnitMetrics[myCurrentTU];
+    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      mergeData.rMyOutput.myTranslationUnitMetrics[myCurrentTU];
+    });
+    
     std::vector<const FileEntry*> fileEntries;
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
@@ -71,32 +81,35 @@ void ClangMetrics::aggregateMetrics()
       unsigned lineEnd   = sm.getExpansionLineNumber(endLoc);
 
       // Create metrics object.
-      FileMetrics& m = rMyOutput.myFileMetrics[fileEntiry->getName()];
-
-      // Calculate file LOC/LLOC.
-      m.LOC = lineEnd - lineBegin + 1;
       rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+        FileMetrics& m = mergeData.rMyOutput.myFileMetrics[fileEntiry->getName()];
+
+        // Calculate file LOC/LLOC.
+        m.LOC = lineEnd - lineBegin + 1;
         m.LLOC = mergeData.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
+        m.endLine = lineEnd;
+        m.endColumn = sm.getExpansionColumnNumber(endLoc);
+
+        // Load McCC from the map if there's an entry. Otherwise leave it at 1.
+        m.McCC = 1;
+        auto mcccit = myMcCCByFiles.find(fid);
+        if (mcccit != myMcCCByFiles.end())
+          m.McCC = mcccit->second + 1;
+
+        FileMetrics& tum = mergeData.rMyOutput.myTranslationUnitMetrics.at(myCurrentTU);
+        // Aggregate files into TU metrics.
+        tum.LOC += m.LOC;
+        tum.LLOC += m.LLOC;
+
+        // Subtract 1 because we only add it once at the end of the aggregation (because of McCC "plus one" definition).
+        tum.McCC += m.McCC - 1;
       });
-      m.endLine = lineEnd;
-      m.endColumn = sm.getExpansionColumnNumber(endLoc);
-
-      // Load McCC from the map if there's an entry. Otherwise leave it at 1.
-      m.McCC = 1;
-      auto mcccit = myMcCCByFiles.find(fid);
-      if (mcccit != myMcCCByFiles.end())
-        m.McCC = mcccit->second + 1;
-
-      // Aggregate files into TU metrics.
-      tum.LOC  += m.LOC;
-      tum.LLOC += m.LLOC;
-
-      // Subtract 1 because we only add it once at the end of the aggregation (because of McCC "plus one" definition).
-      tum.McCC += m.McCC - 1;
     }
 
-    // Add 1 to the McCC of the TU, because of the "plus one" definition. Then merge.
-    tum.McCC += 1;
+    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      // Add 1 to the McCC of the TU, because of the "plus one" definition. Then merge.
+      mergeData.rMyOutput.myTranslationUnitMetrics.at(myCurrentTU).McCC += 1;
+    });
   }
     
   // Debug print Halstead metrics if requested.
@@ -392,7 +405,7 @@ const GlobalMergeData::Range* clang::metrics::detail::GlobalMergeData::getParent
   return &*(--it);
 }
 
-void GlobalMergeData::aggregate(Output& output) const
+void GlobalMergeData::aggregate() const
 {
   struct LOCInfo
   {
@@ -439,7 +452,7 @@ void GlobalMergeData::aggregate(Output& output) const
   {
     if (object.first.kind == Object::FUNCTION)
     {
-      FunctionMetrics& m = output.myFunctionMetrics[object.first.uid];
+      FunctionMetrics& m = rMyOutput.myFunctionMetrics[object.first.uid];
 
       const Range* range = getDefinition(object.first.uid);
       if (range)
@@ -450,7 +463,7 @@ void GlobalMergeData::aggregate(Output& output) const
           assert(itp != myRangeMap.end() && "All ranges should be added to the range map.");
           if (itp->second->kind == Object::CLASS || itp->second->kind == Object::INTERFACE)
           {
-            ++output.myClassMetrics[itp->second->uid].NLM;
+            ++rMyOutput.myClassMetrics[itp->second->uid].NLM;
           }
         }
 
@@ -467,7 +480,7 @@ void GlobalMergeData::aggregate(Output& output) const
     }
     else if (object.first.kind == Object::CLASS || object.first.kind == Object::INTERFACE)
     {
-      ClassMetrics& m = output.myClassMetrics[object.first.uid];
+      ClassMetrics& m = rMyOutput.myClassMetrics[object.first.uid];
 
       const Range* range = getDefinition(object.first.uid);
       if (range)
@@ -479,9 +492,9 @@ void GlobalMergeData::aggregate(Output& output) const
           if (itp->second->kind == Object::NAMESPACE)
           {
             if (object.first.kind == Object::CLASS)
-              ++output.myNamespaceMetrics[itp->second->uid].totalMetrics.NCL;
+              ++rMyOutput.myNamespaceMetrics[itp->second->uid].totalMetrics.NCL;
             else /* if INTERFACE */
-              ++output.myNamespaceMetrics[itp->second->uid].totalMetrics.NIN;
+              ++rMyOutput.myNamespaceMetrics[itp->second->uid].totalMetrics.NIN;
           }
         }
 
@@ -498,7 +511,7 @@ void GlobalMergeData::aggregate(Output& output) const
     }
     else if (object.first.kind == Object::ENUM)
     {
-      EnumMetrics& m = output.myEnumMetrics[object.first.uid];
+      EnumMetrics& m = rMyOutput.myEnumMetrics[object.first.uid];
 
       const Range* range = getDefinition(object.first.uid);
       if (range)
@@ -509,7 +522,7 @@ void GlobalMergeData::aggregate(Output& output) const
           assert(itp != myRangeMap.end() && "All ranges should be added to the range map.");
           if (itp->second->kind == Object::NAMESPACE)
           {
-            ++output.myNamespaceMetrics[itp->second->uid].totalMetrics.NEN;
+            ++rMyOutput.myNamespaceMetrics[itp->second->uid].totalMetrics.NEN;
           }
         }
 
@@ -524,7 +537,7 @@ void GlobalMergeData::aggregate(Output& output) const
     }
     else if (object.first.kind == Object::NAMESPACE)
     {
-      NamespaceMetrics& namespaceMetrics = output.myNamespaceMetrics[object.first.uid];
+      NamespaceMetrics& namespaceMetrics = rMyOutput.myNamespaceMetrics[object.first.uid];
       namespaceMetrics.name = object.first.uid->getName();
 
       for (const Range* range : object.second)

@@ -1,6 +1,7 @@
 #include <clang/Metrics/ASTPrePostVisitor.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
+#include "ClangMetrics.h"
 #include <stack>
 #include<iostream>
 
@@ -17,13 +18,13 @@ namespace
   class ASTMergeVisitor : public RecursiveASTVisitor<ASTMergeVisitor>
   {
     public:
-      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode,clang::metrics::Output *output = nullptr)
+      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode, clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd = nullptr)
         : context (context)
         , post (post)
         , visitTemplateInstantiations (visitTemplateInstantiations)
         , visitImplicitCode (visitImplicitCode)
         , nodes (nodes)
-        , output(output)
+        , gmd(gmd)
       {
       }
 
@@ -68,7 +69,7 @@ namespace
       const bool visitTemplateInstantiations;
       const bool visitImplicitCode;
       NodeList& nodes;
-      clang::metrics::Output *output;
+      clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd;
   };
 
   void dumpNodeInfo(const NodeInfo& nodeInfo, ASTContext *context)
@@ -150,7 +151,7 @@ namespace
 
   bool ASTMergeVisitor::TraverseDecl(clang::Decl * decl)
   {
-    if(!output)
+    if(!gmd)
       return RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
 
     //std::cout << "clangmetrics traverseDecl (merge)" << std::endl;
@@ -173,16 +174,18 @@ namespace
     {
       auto fileName = fileEntry->getName();
 
-      //only visit if this file was not yet visited
-      if(output->filesAlreadyProcessed.count(fileName) == 0)
-      {
-        RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
-        //std::cout << "clangmetrics traversed stuff" << std::endl;
-      }
-      else
-      {
-        //std::cout << "clangmetrics skipped" << std::endl;
-      }
+      gmd->call([&](metrics::detail::GlobalMergeData& mergeData) {
+        //only visit if this file was not yet visited
+        if (mergeData.filesAlreadyProcessed.count(fileName) == 0)
+        {
+          RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
+          //std::cout << "clangmetrics traversed stuff" << std::endl;
+        }
+        else
+        {
+          //std::cout << "clangmetrics skipped" << std::endl;
+        }
+      });
     }
     else 
     {
@@ -199,15 +202,15 @@ namespace
 namespace clang
 {
 
-ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, clang::metrics::Output *output, const bool visitTemplateInstantiations, const bool visitImplicitCode)
+ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, ASTPrePostVisitor& visitor, clang::metrics::detail::GlobalMergeData_ThreadSafe *gmd, const bool visitTemplateInstantiations, const bool visitImplicitCode)
   : astContext (astContext)
   , visitor (visitor)
 {
   if (astContext.getTranslationUnitDecl() != nullptr)
   {
     NodeList pre, post;
-    ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode,output).TraverseDecl(astContext.getTranslationUnitDecl()); //ezt kell overrideolni
-    ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode,output).TraverseDecl(astContext.getTranslationUnitDecl());
+    ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode, gmd).TraverseDecl(astContext.getTranslationUnitDecl()); //ezt kell overrideolni
+    ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode, gmd).TraverseDecl(astContext.getTranslationUnitDecl());
     merged = merge(pre, post);
   }
 }

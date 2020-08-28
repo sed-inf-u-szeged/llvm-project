@@ -134,6 +134,8 @@ private:
   typedef std::unordered_map<const Range*, const Object*> rangemap_t;
 
 public:
+  GlobalMergeData(Output& output) : rMyOutput(output) {}
+
   // Adds a declaration, creating a UID and a range for it, and mapping the two togather.
   void addDecl(const clang::Decl* decl);
 
@@ -145,7 +147,7 @@ public:
 
   // Aggregates metrics into the output.
   // This is the final step of the calculation, called after all files have been processed.
-  void aggregate(Output& output) const;
+  void aggregate() const;
 
   // Calculates LLOC between two lines.
   unsigned calculateLLOC(const std::string& filename, unsigned lineBegin, unsigned lineEnd)
@@ -205,11 +207,17 @@ private:
   unsigned myNextFileID = 1;
 
 public:
+  // Stores the output.
+  Output& rMyOutput;
+
   // Maps filenames to unique integer IDs. Must be public for linking.
   filemap_t myFileIDs;
 
   // Maps unique integer IDs to filenames. Must be public for linking.
   reverse_filemap_t reverseMyFileIDs;
+
+  //Helper for linking multiple components
+  std::unordered_set<std::string> filesAlreadyProcessed;
 
 private:
   // Stores (file ID, code line) pairs in an ordered set.
@@ -232,7 +240,7 @@ class GlobalMergeData_ThreadSafe
   std::recursive_mutex globalMergeDataMutex;
 
 public:
-  GlobalMergeData_ThreadSafe() {}
+  GlobalMergeData_ThreadSafe(Output& output) : globalMergeData(output) {}
   template <class Operation>
   auto call(Operation o) -> decltype(o(globalMergeData))
   {
@@ -256,8 +264,7 @@ public:
   //! Constructor.
   //!  \param output reference to the Output object where the results will be stored
   //!  \param context the AST context
-  ClangMetrics(Output& output, GlobalMergeData_ThreadSafe& data, ASTContext& context) :
-    rMyOutput(output),
+  ClangMetrics(GlobalMergeData_ThreadSafe& data, ASTContext& context) :
     myCurrentTU(""),
     rMyGMD(data),
     pMyASTContext(&context)
@@ -269,8 +276,7 @@ public:
 
   //! Constructor.
   //!  \param output reference to the Output object where the results will be stored
-  ClangMetrics(Output& output, GlobalMergeData_ThreadSafe& data) :
-    rMyOutput(output),
+  ClangMetrics(GlobalMergeData_ThreadSafe& data) :
     myCurrentTU(""),
     rMyGMD(data),
     pMyASTContext(nullptr)
@@ -311,7 +317,11 @@ public:
   // Returns a reference to the UID factory.
   UIDFactory& getUIDFactory() const
   {
-    return rMyOutput.getFactory();
+    UIDFactory* uidFactory;
+    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      uidFactory = &mergeData.rMyOutput.getFactory();
+    });
+    return *uidFactory;
   }
 
   // Class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
@@ -319,9 +329,6 @@ public:
   class NodeVisitor;
 
 protected:
-  // Stores the output.
-  Output& rMyOutput;
-
   // The name of the file of the current translation unit.
   std::string myCurrentTU;
 

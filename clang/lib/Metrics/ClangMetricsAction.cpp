@@ -1,7 +1,6 @@
 #include "ClangMetricsAction.h"
 #include "Consumer.h"
 #include <clang/Metrics/MetricsUtility.h>
-#include <clang/Metrics/Output.h>
 
 // Use some clang namespace for simplicity
 using namespace clang;
@@ -13,17 +12,20 @@ std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInsta
     std::cout << "Clang-metrics processing file: " << file.str() << " ..." << std::endl;
   }
 
-  rMyOutput.getFactory().onSourceOperationBegin(ci.getASTContext(), file);
+  gmd.call([&](detail::GlobalMergeData& mergeData) {
+    mergeData.rMyOutput.getFactory().onSourceOperationBegin(ci.getASTContext(), file);
+  });
+  
   updateASTContext(ci.getASTContext());
   updateCurrentTU(file);
-  return std::unique_ptr<ASTConsumer>(new Consumer(*this, output));
+  return std::unique_ptr<ASTConsumer>(new Consumer(*this, gmd));
 }
 
 void ClangMetricsAction::EndSourceFileAction() {
   aggregateMetrics();
   gmd.call([&](detail::GlobalMergeData& mergeData) {
     for (auto kv : mergeData.myFileIDs) {
-      output.filesAlreadyProcessed.insert(kv.first);
+      mergeData.filesAlreadyProcessed.insert(kv.first);
     }
   });
 

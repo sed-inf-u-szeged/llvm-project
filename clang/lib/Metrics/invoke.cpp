@@ -23,29 +23,27 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
   class Factory : public FrontendActionFactory
   {
   public:
-    Factory(Output& output, detail::GlobalMergeData_ThreadSafe& data, const InvokeOptions& options) :
-      rMyOutput(output),
+    Factory(detail::GlobalMergeData_ThreadSafe& data, const InvokeOptions& options) :
       rMyData(data),
       rMyOptions(options)
     {}
 
     FrontendAction* create() override
     {
-      detail::ClangMetricsAction* ptr = new detail::ClangMetricsAction(rMyOutput, rMyData);
+      detail::ClangMetricsAction* ptr = new detail::ClangMetricsAction(rMyData);
       ptr->debugPrintHalsteadAfterVisit(rMyOptions.enableHalsteadDebugPrint);
       ptr->shouldPrintTracingInfo = rMyOptions.enableProcessingTracePrint;
       return ptr;
     }
 
   private:
-    Output& rMyOutput;
     detail::GlobalMergeData_ThreadSafe& rMyData;
     const InvokeOptions& rMyOptions;
   };
 
   // Create factory and invoke main program.
-  detail::GlobalMergeData_ThreadSafe gmd;
-  std::unique_ptr<Factory> factory(new Factory(output, gmd, options));
+  detail::GlobalMergeData_ThreadSafe gmd(output);
+  std::unique_ptr<Factory> factory(new Factory(gmd, options));
   if (tool.run(factory.get()))
     return false;
 
@@ -59,11 +57,11 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
       mergeData.debugPrintObjectRanges(std::cout);
 
     // Aggregate metrics.
-    mergeData.aggregate(output);
+    mergeData.aggregate();
 
     for (auto kv : mergeData.myFileIDs)
     {
-      output.filesAlreadyProcessed.insert(kv.first);
+      mergeData.filesAlreadyProcessed.insert(kv.first);
     }
   });
 
@@ -72,8 +70,8 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
 
 void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options)
 {
-  detail::GlobalMergeData_ThreadSafe gmd;
-  detail::ClangMetrics clangMetrics(output, gmd, context);
+  detail::GlobalMergeData_ThreadSafe gmd(output);
+  detail::ClangMetrics clangMetrics(gmd, context);
   clangMetrics.debugPrintHalsteadAfterVisit(options.enableHalsteadDebugPrint);
 
   output.getFactory().onSourceOperationBegin(context, "");
@@ -100,11 +98,11 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
       mergeData.debugPrintObjectRanges(std::cout);
 
     // Aggregate metrics.
-    mergeData.aggregate(output);
+    mergeData.aggregate();
 
     for (auto kv : mergeData.myFileIDs)
     {
-      output.filesAlreadyProcessed.insert(kv.first);
+      mergeData.filesAlreadyProcessed.insert(kv.first);
     }
   });
 }
