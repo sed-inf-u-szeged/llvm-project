@@ -57,6 +57,7 @@ void ClangMetrics::aggregateMetrics()
     std::vector<const FileEntry*> fileEntries;
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
     {
+      string s = it->first->getName().str();
       rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
         if (mergeData.myFileIDs.find(it->first->getName().str()) != mergeData.myFileIDs.end())
         {
@@ -548,12 +549,6 @@ void GlobalMergeData::aggregate() const
           //std::cout << "FILEIT END!" << std::endl;
           continue;
         }
-        
-        //this is now not needed as in the new design, aggregate only gets called once (ever)
-        /*if(output.filesAlreadyProcessed.count(fileit->second) == 1){
-          //std::cout << "FILEIT ALREADY INIT!" << std::endl;
-          continue;
-        }*/
 
         auto it = locmap.find(range);
         if (it != locmap.end())

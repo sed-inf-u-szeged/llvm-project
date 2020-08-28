@@ -18,13 +18,14 @@ namespace
   class ASTMergeVisitor : public RecursiveASTVisitor<ASTMergeVisitor>
   {
     public:
-      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode, clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd = nullptr)
+      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode, clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd = nullptr, std::unordered_set<std::string>* filesToTraverse = nullptr)
         : context (context)
         , post (post)
         , visitTemplateInstantiations (visitTemplateInstantiations)
         , visitImplicitCode (visitImplicitCode)
         , nodes (nodes)
         , gmd(gmd)
+        , filesToTraverse(filesToTraverse)
       {
       }
 
@@ -70,6 +71,7 @@ namespace
       const bool visitImplicitCode;
       NodeList& nodes;
       clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd;
+      std::unordered_set<std::string>* filesToTraverse;
   };
 
   void dumpNodeInfo(const NodeInfo& nodeInfo, ASTContext *context)
@@ -151,7 +153,7 @@ namespace
 
   bool ASTMergeVisitor::TraverseDecl(clang::Decl * decl)
   {
-    if(!gmd)
+    if(!gmd || !filesToTraverse)
       return RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
 
     //std::cout << "clangmetrics traverseDecl (merge)" << std::endl;
@@ -173,19 +175,31 @@ namespace
     if(fileEntry)
     {
       auto fileName = fileEntry->getName();
+      bool shouldTraverse = false;
+      if (filesToTraverse->count(fileName) != 0)
+        shouldTraverse = true;
+      else
+      {
+        gmd->call([&](metrics::detail::GlobalMergeData& mergeData) {
+          //only visit if this file was not yet visited by another thread
+          if (mergeData.filesAlreadyProcessed.count(fileName) == 0)
+          {
+            // filesAlreadyProcessed is accessable by every thread and is used to make sure a file isn't traversed by multiple threads
+            mergeData.filesAlreadyProcessed.insert(fileName);
+            // filesToTraverse is used to store which files this thread will traverse, so the post traverser knows which ones the pre traverser traversed
+            filesToTraverse->insert(fileName);
+            shouldTraverse = true;
+            //std::cout << "clangmetrics traversed stuff" << std::endl;
+          }
+          else
+          {
+            //std::cout << "clangmetrics skipped" << std::endl;
+          }
+        });
+      }
 
-      gmd->call([&](metrics::detail::GlobalMergeData& mergeData) {
-        //only visit if this file was not yet visited
-        if (mergeData.filesAlreadyProcessed.count(fileName) == 0)
-        {
-          RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
-          //std::cout << "clangmetrics traversed stuff" << std::endl;
-        }
-        else
-        {
-          //std::cout << "clangmetrics skipped" << std::endl;
-        }
-      });
+      if(shouldTraverse)
+        RecursiveASTVisitor<ASTMergeVisitor>::TraverseDecl(decl);
     }
     else 
     {
@@ -208,9 +222,11 @@ ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, AS
 {
   if (astContext.getTranslationUnitDecl() != nullptr)
   {
+    // Used to store which files the ASTMergeVisitor traverses, so that the pre and post will traverse the same files. This is required due to multithreading
+    std::unordered_set<std::string> filesToTraverse;
     NodeList pre, post;
-    ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode, gmd).TraverseDecl(astContext.getTranslationUnitDecl()); //ezt kell overrideolni
-    ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode, gmd).TraverseDecl(astContext.getTranslationUnitDecl());
+    ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode, gmd, &filesToTraverse).TraverseDecl(astContext.getTranslationUnitDecl()); //ezt kell overrideolni
+    ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode, gmd, &filesToTraverse).TraverseDecl(astContext.getTranslationUnitDecl());
     merged = merge(pre, post);
   }
 }
