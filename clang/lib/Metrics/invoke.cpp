@@ -71,10 +71,9 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
 void metrics::invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options)
 {
   detail::GlobalMergeData_ThreadSafe gmd(output);
-  detail::ClangMetrics clangMetrics(gmd, context);
+  detail::ClangMetrics clangMetrics(gmd);
+  clangMetrics.updateASTContext(context);
   clangMetrics.debugPrintHalsteadAfterVisit(options.enableHalsteadDebugPrint);
-
-  output.getFactory().onSourceOperationBegin(context, "");
 
   detail::ClangMetrics::NodeVisitor visitor(clangMetrics);
 

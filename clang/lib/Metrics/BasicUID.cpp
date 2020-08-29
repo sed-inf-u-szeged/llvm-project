@@ -6,28 +6,14 @@
 
 using namespace clang;
 
-
-metrics::BasicUIDFactory::BasicUIDFactory()
-  : pMyASTCtx (nullptr)
-  , diagnosticsEngine(IntrusiveRefCntPtr<clang::DiagnosticIDs>(new DiagnosticIDs()),
-                      &*IntrusiveRefCntPtr<clang::DiagnosticOptions>(new DiagnosticOptions()))
-{
-}
-
-void metrics::BasicUIDFactory::onSourceOperationBegin(clang::ASTContext& context, llvm::StringRef filename)
-{
-  pMyASTCtx = &context;
-  pMyMangleCtx.reset(clang::ItaniumMangleContext::create(context, diagnosticsEngine));
-}
-
-std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl* decl)
+std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl* decl, std::shared_ptr<clang::MangleContext> mangleContext)
 {
   std::string mangledName;
   llvm::raw_string_ostream ss(mangledName);
-
   if (decl)
   {
-    const SourceManager& sm = pMyASTCtx->getSourceManager();
+    ASTContext& context = mangleContext->getASTContext();
+    const SourceManager& sm = context.getSourceManager();
     const DeclContext *parent = nullptr;
 
     // Functions can have their name mangled easily by the built-in mangler
@@ -42,11 +28,11 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
 
       // Use the built-in mangler to get the mangled name for the function.
       if (CXXConstructorDecl::classof(decl))
-        pMyMangleCtx->mangleCXXCtor(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete, ss);
+        mangleContext->mangleCXXCtor(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete, ss);
       else if (CXXDestructorDecl::classof(decl))
-        pMyMangleCtx->mangleCXXDtor(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete, ss);
+        mangleContext->mangleCXXDtor(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete, ss);
       else
-        pMyMangleCtx->mangleName(cast<FunctionDecl>(decl), ss);
+        mangleContext->mangleName(cast<FunctionDecl>(decl), ss);
     }
     else
     {

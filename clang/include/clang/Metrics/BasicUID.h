@@ -55,16 +55,8 @@ namespace clang
      */
     class BasicUIDFactory final : public UIDFactory
     {
-    public:
-      BasicUIDFactory();
     private:
-      void onSourceOperationBegin(clang::ASTContext& context, llvm::StringRef filename) override;
-      std::unique_ptr<UID> create(const clang::Decl* decl) override;
-
-    private:
-      clang::ASTContext* pMyASTCtx = nullptr;
-      std::unique_ptr<clang::MangleContext> pMyMangleCtx;
-      DiagnosticsEngine diagnosticsEngine;
+      std::unique_ptr<UID> create(const clang::Decl* decl, std::shared_ptr<clang::MangleContext> mangleContext) override;
     };
   }
 }

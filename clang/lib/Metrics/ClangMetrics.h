@@ -137,13 +137,13 @@ public:
   GlobalMergeData(Output& output) : rMyOutput(output) {}
 
   // Adds a declaration, creating a UID and a range for it, and mapping the two togather.
-  void addDecl(const clang::Decl* decl);
+  void addDecl(const clang::Decl* decl, ClangMetrics& currentAnalyzer);
 
   // Adds a SourceLocation where there is code.
-  void addCodeLine(SourceLocation loc);
+  void addCodeLine(SourceLocation loc, ClangMetrics& currentAnalyzer);
 
   // Returns a pointer to the range containing the given location, if there is one.
-  const Range* getParentRange(SourceLocation loc);
+  const Range* getParentRange(SourceLocation loc, ClangMetrics& currentAnalyzer);
 
   // Aggregates metrics into the output.
   // This is the final step of the calculation, called after all files have been processed.
@@ -157,12 +157,6 @@ public:
 
   // Prints debug information for ranges.
   void debugPrintObjectRanges(std::ostream& os) const;
-
-  // Called by ClangMetrics constructor. Do not call manually.
-  void setAnalyzer(ClangMetrics* analyzer)
-  {
-    pMyAnalyzer = analyzer;
-  }
 
   // Mapping declarations to their ranges
   //std::unordered_map<const clang::CXXRecordDecl *, const GlobalMergeData::Range *> declToRangeMap;
@@ -179,11 +173,11 @@ private:
 
   // Creates a new range and returns a reference to it.
   // Note that ranges that only differ in their type or parent from a range already added, will not be created.
-  const Range& createRange(Range::range_t type, SourceLocation start, SourceLocation end, const Range* parent, Range::oper_t operation);
+  const Range& createRange(Range::range_t type, SourceLocation start, SourceLocation end, const Range* parent, Range::oper_t operation, ClangMetrics& currentAnalyzer);
 
   // Creates a new range and returns a reference to it.
   // Note that ranges that only differ in their type or parent from a range already added, will not be created.
-  const Range& createRange(Range::range_t type, SourceRange r, const Range* parent, Range::oper_t operation);
+  const Range& createRange(Range::range_t type, SourceRange r, const Range* parent, Range::oper_t operation, ClangMetrics& currentAnalyzer);
 
   // Returns the range where the definition is, or the first declaration if there is no definition.
   // Returns nullptr if there exists neither definition nor declaration for the UID.
@@ -198,10 +192,6 @@ private:
 private:
   // Invalid range. Returned by createRange() when the input is not valid.
   static const Range INVALID_RANGE;
-
-  // Pointer to the current ClangMetrics object analyzing a TU.
-  // Defaults to nullptr and set before a source operation begins.
-  ClangMetrics* pMyAnalyzer = nullptr;
 
   // Value of the next ID to be assigned. Zero is reserved as an invalid ID.
   unsigned myNextFileID = 1;
@@ -263,27 +253,14 @@ private:
 public:
   //! Constructor.
   //!  \param output reference to the Output object where the results will be stored
-  //!  \param context the AST context
-  ClangMetrics(GlobalMergeData_ThreadSafe& data, ASTContext& context) :
-    myCurrentTU(""),
-    rMyGMD(data),
-    pMyASTContext(&context)
-  {
-    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-      mergeData.setAnalyzer(this);
-    });
-  }
-
-  //! Constructor.
-  //!  \param output reference to the Output object where the results will be stored
   ClangMetrics(GlobalMergeData_ThreadSafe& data) :
     myCurrentTU(""),
     rMyGMD(data),
-    pMyASTContext(nullptr)
+    pMyASTContext(nullptr),
+    pMyMangleContext(nullptr),
+    diagnosticsEngine(IntrusiveRefCntPtr<clang::DiagnosticIDs>(new DiagnosticIDs()),
+      &*IntrusiveRefCntPtr<clang::DiagnosticOptions>(new DiagnosticOptions()))
   {
-    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-      mergeData.setAnalyzer(this);
-    });
   }
 
   //! If set to true, debug information will be printed to the standard output after
@@ -300,6 +277,7 @@ public:
   void updateASTContext(ASTContext& context)
   {
     pMyASTContext = &context;
+    pMyMangleContext.reset(clang::ItaniumMangleContext::create(context, diagnosticsEngine));
   }
 
   // Update the current compilation unit file
@@ -314,14 +292,16 @@ public:
     return pMyASTContext;
   }
 
-  // Returns a reference to the UID factory.
-  UIDFactory& getUIDFactory() const
+  // Returns a pointer to the actual AST context
+  std::string getTU() const
   {
-    UIDFactory* uidFactory;
-    rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-      uidFactory = &mergeData.rMyOutput.getFactory();
-    });
-    return *uidFactory;
+    return myCurrentTU;
+  }
+
+  // Returns a pointer to the actual AST context
+  std::shared_ptr<MangleContext> getMangleContext() const
+  {
+    return pMyMangleContext;
   }
 
   // Class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
@@ -401,6 +381,12 @@ private:
 
   // The AST context.
   ASTContext* pMyASTContext;
+
+  // The Mangle context.
+  std::shared_ptr<MangleContext> pMyMangleContext;
+
+  // The diagnosticsEngine used to create the mangleContext
+  clang::DiagnosticsEngine diagnosticsEngine;
 
   // Print debug info?
   bool myDebugPrintAfterVisit = false;

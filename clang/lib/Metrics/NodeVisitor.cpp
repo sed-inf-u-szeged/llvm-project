@@ -535,15 +535,15 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
 
   // Add it to the GMD.
   rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-    mergeData.addDecl(decl);
+    mergeData.addDecl(decl, rMyMetrics);
 
     // Add the places where there is sure to be code.
-    mergeData.addCodeLine(decl->getBeginLoc());
-    mergeData.addCodeLine(decl->getLocation());
-    mergeData.addCodeLine(decl->getEndLoc());
+    mergeData.addCodeLine(decl->getBeginLoc(), rMyMetrics);
+    mergeData.addCodeLine(decl->getLocation(), rMyMetrics);
+    mergeData.addCodeLine(decl->getEndLoc(), rMyMetrics);
 
     if (const TagDecl* td = dyn_cast_or_null<TagDecl>(decl))
-      mergeData.addCodeLine(td->getBraceRange().getBegin());
+      mergeData.addCodeLine(td->getBraceRange().getBegin(), rMyMetrics);
   });
   
   // Handle semicolons.
@@ -614,8 +614,8 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt)
 
   // Add places where there is sure to be code.
   rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-    mergeData.addCodeLine(stmt->getBeginLoc());
-    mergeData.addCodeLine(stmt->getEndLoc());
+    mergeData.addCodeLine(stmt->getBeginLoc(), rMyMetrics);
+    mergeData.addCodeLine(stmt->getEndLoc(), rMyMetrics);
   });
 
   handleNLMetrics(stmt, true);
@@ -644,7 +644,7 @@ bool ClangMetrics::NodeVisitor::VisitStmt(const Stmt *stmt)
     //std::cout << "Increasing NOS" << std::endl;
     rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
       if (const GlobalMergeData::Range* range =
-        mergeData.getParentRange(stmt->getBeginLoc()))
+        mergeData.getParentRange(stmt->getBeginLoc(), rMyMetrics))
         ++range->numberOfStatements;
     });
 
@@ -760,9 +760,9 @@ bool ClangMetrics::NodeVisitor::VisitIfStmt(const clang::IfStmt *stmt) {
   increaseMcCCStmt(stmt);
 
   rMyMetrics.rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-    mergeData.addCodeLine(stmt->getIfLoc());
+    mergeData.addCodeLine(stmt->getIfLoc(), rMyMetrics);
     if (stmt->getElse() != nullptr)
-      mergeData.addCodeLine(stmt->getElseLoc());
+      mergeData.addCodeLine(stmt->getElseLoc(), rMyMetrics);
   });
 
   if (const DeclContext *f = getFunctionContextFromStmt(*stmt)) {

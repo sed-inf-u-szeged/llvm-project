@@ -14,16 +14,14 @@ const GlobalMergeData::Range GlobalMergeData::INVALID_RANGE = {};
 void ClangMetrics::aggregateMetrics()
 {
   using namespace std;
-  
-  UIDFactory& factory = getUIDFactory();
-  factory.onSourceOperationEnd(*pMyASTContext);
 
   // Function metrics:
   for (auto& met : myFunctionMetrics)
   {
     auto declaration = cast<Decl>(met.first);
-    shared_ptr<UID> functionUID = factory.create(declaration);
+    shared_ptr<UID> functionUID;
     rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
+      functionUID = mergeData.rMyOutput.getFactory().create(declaration, pMyMangleContext);
       mergeData.rMyOutput.myFunctionMetrics[functionUID];
     });
     
@@ -139,20 +137,16 @@ void ClangMetrics::aggregateMetrics()
   }
 }
 
-void GlobalMergeData::addDecl(const Decl* decl)
+void GlobalMergeData::addDecl(const Decl* decl, ClangMetrics& currentAnalyzer)
 {
-  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
-
-  UIDFactory& factory = pMyAnalyzer->getUIDFactory();
-
   Range::range_t type;
   Range::oper_t  oper;
   Object::kind_t  kind;
   const Range* parent = nullptr;
 
-  auto createTemporaryRange = [this](const Decl* decl)
+  auto createTemporaryRange = [this, &currentAnalyzer](const Decl* decl)
   {
-    SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+    SourceManager& sm = currentAnalyzer.getASTContext()->getSourceManager();
 
 
     SourceLocation start = decl->getBeginLoc();
@@ -172,7 +166,7 @@ void GlobalMergeData::addDecl(const Decl* decl)
   {
     if (isa<NamespaceDecl>(pn))
     {
-      auto it = myObjects.find({ factory.create(cast<Decl>(pn)), Object::kind_t() });
+      auto it = myObjects.find({ rMyOutput.getFactory().create(cast<Decl>(pn), currentAnalyzer.getMangleContext()), Object::kind_t() });
       if (it != myObjects.end())
       {
 
@@ -205,11 +199,11 @@ void GlobalMergeData::addDecl(const Decl* decl)
 
     if (type == Range::DEFINITION && pn && isa<FunctionDecl>(pn)) {
       oper = Range::LOC_SUBTRACT;
-      parent = getDefinition(factory.create(dyn_cast_or_null<FunctionDecl>(pn)));
+      parent = getDefinition(rMyOutput.getFactory().create(dyn_cast_or_null<FunctionDecl>(pn), currentAnalyzer.getMangleContext()));
     }
     else if (auto d = dyn_cast<CXXMethodDecl>(decl))
     {
-      const Range* parentRange = getDefinition(factory.create(d->getParent()));
+      const Range* parentRange = getDefinition(rMyOutput.getFactory().create(d->getParent(), currentAnalyzer.getMangleContext()));
       if (parentRange && parentRange->type == Range::DEFINITION)
       {
         if (!containsRange(*parentRange, createTemporaryRange(d)))
@@ -237,7 +231,7 @@ void GlobalMergeData::addDecl(const Decl* decl)
       {
         oper = Range::LOC_SUBTRACT;
 
-        const Range* parentRange = getDefinition(factory.create(cast<Decl>(pn)));
+        const Range* parentRange = getDefinition(rMyOutput.getFactory().create(cast<Decl>(pn), currentAnalyzer.getMangleContext()));
         if (parentRange && parentRange->type == Range::DEFINITION)
           parent = parentRange;
       }
@@ -270,14 +264,14 @@ void GlobalMergeData::addDecl(const Decl* decl)
   }
   else if (auto d = dyn_cast<ObjCCategoryImplDecl>(decl))
   {
-    parent = getDefinition(factory.create(dyn_cast<Decl>(d->getCategoryDecl())));
-    createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE);
+    parent = getDefinition(rMyOutput.getFactory().create(dyn_cast<Decl>(d->getCategoryDecl()), currentAnalyzer.getMangleContext()));
+    createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE, currentAnalyzer);
     return;
   }
   else if (auto d = dyn_cast<ObjCImplementationDecl>(decl))
   {
-    parent = getDefinition(factory.create(dyn_cast<Decl>(d->getClassInterface())));
-    createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE);
+    parent = getDefinition(rMyOutput.getFactory().create(dyn_cast<Decl>(d->getClassInterface()), currentAnalyzer.getMangleContext()));
+    createRange(Range::DEFINITION, decl->getSourceRange(), parent, Range::LOC_MERGE, currentAnalyzer);
     return;
   }
   else if (auto d = dyn_cast<ObjCMethodDecl>(decl))
@@ -297,7 +291,7 @@ void GlobalMergeData::addDecl(const Decl* decl)
       parentContext = impl->getClassInterface();
     }
 
-    const Range* parentRange = getDefinition(factory.create(dyn_cast<Decl>(parentContext)));
+    const Range* parentRange = getDefinition(rMyOutput.getFactory().create(dyn_cast<Decl>(parentContext), currentAnalyzer.getMangleContext()));
     if (parentRange && parentRange->type == Range::DEFINITION)
     {
       parent = parentRange;
@@ -364,18 +358,17 @@ void GlobalMergeData::addDecl(const Decl* decl)
     if (const ClassTemplateDecl* templateDecl = r->getDescribedClassTemplate())
       sourceRange = templateDecl->getSourceRange();
 
-  const Range& range = createRange(type, sourceRange, parent, oper);
-  auto objit = myObjects.emplace(Object{ factory.create(decl), kind }, std::set<const Range*, RangePtrComparator>{}).first;
+  const Range& range = createRange(type, sourceRange, parent, oper, currentAnalyzer);
+  auto objit = myObjects.emplace(Object{ rMyOutput.getFactory().create(decl, currentAnalyzer.getMangleContext()), kind }, std::set<const Range*, RangePtrComparator>{}).first;
   objit->second.insert(&range);
   myRangeMap[&range] = &objit->first;
   //if (const CXXRecordDecl* d = dyn_cast<CXXRecordDecl>(decl))
   //  declToRangeMap[d] = &range;
 }
 
-void GlobalMergeData::addCodeLine(SourceLocation loc)
+void GlobalMergeData::addCodeLine(SourceLocation loc, ClangMetrics& currentAnalyzer)
 {
-  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
-  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+  SourceManager& sm = currentAnalyzer.getASTContext()->getSourceManager();
 
   if(loc.isMacroID())
     loc = sm.getExpansionLoc(loc);
@@ -387,13 +380,12 @@ void GlobalMergeData::addCodeLine(SourceLocation loc)
   myCodeLines.emplace(fid, sm.getExpansionLineNumber(loc));
 }
 
-const GlobalMergeData::Range* clang::metrics::detail::GlobalMergeData::getParentRange(SourceLocation loc)
+const GlobalMergeData::Range* clang::metrics::detail::GlobalMergeData::getParentRange(SourceLocation loc, ClangMetrics& currentAnalyzer)
 {
   if (myRanges.empty())
     return nullptr;
 
-  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
-  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+  SourceManager& sm = currentAnalyzer.getASTContext()->getSourceManager();
 
   unsigned file   = fileid(sm.getFilename(loc));
   unsigned line   = sm.getExpansionLineNumber(loc);
@@ -716,14 +708,12 @@ GlobalMergeData::createRange(Range::range_t type, const std::string& filename, u
 }
 
 const GlobalMergeData::Range&
-GlobalMergeData::createRange(Range::range_t type, SourceLocation start, SourceLocation end, const Range* parent, Range::oper_t operation)
+GlobalMergeData::createRange(Range::range_t type, SourceLocation start, SourceLocation end, const Range* parent, Range::oper_t operation, ClangMetrics& currentAnalyzer)
 {
-  SourceManager& sm = pMyAnalyzer->getASTContext()->getSourceManager();
+  SourceManager& sm = currentAnalyzer.getASTContext()->getSourceManager();
 
   if (start.isInvalid() || end.isInvalid())
     return INVALID_RANGE;
-
-  assert(pMyAnalyzer && "Pointer to ClangMetrics should already be set at this point.");
 
   if (start.isMacroID())
   {
@@ -735,9 +725,9 @@ GlobalMergeData::createRange(Range::range_t type, SourceLocation start, SourceLo
     sm.getExpansionLineNumber(end), sm.getExpansionColumnNumber(start), sm.getExpansionColumnNumber(end), parent, operation);
 }
 
-const GlobalMergeData::Range& GlobalMergeData::createRange(Range::range_t type, SourceRange r, const Range* parent, Range::oper_t operation)
+const GlobalMergeData::Range& GlobalMergeData::createRange(Range::range_t type, SourceRange r, const Range* parent, Range::oper_t operation, ClangMetrics& currentAnalyzer)
 {
-  return createRange(type, r.getBegin(), r.getEnd(), parent, operation);
+  return createRange(type, r.getBegin(), r.getEnd(), parent, operation, currentAnalyzer);
 }
 
 const GlobalMergeData::Range* GlobalMergeData::getDefinition(std::shared_ptr<UID> uid) const

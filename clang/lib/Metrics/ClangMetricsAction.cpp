@@ -11,10 +11,6 @@ std::unique_ptr<ASTConsumer> ClangMetricsAction::CreateASTConsumer(CompilerInsta
   if (shouldPrintTracingInfo) {
     std::cout << "Clang-metrics processing file: " << file.str() << " ..." << std::endl;
   }
-
-  gmd.call([&](detail::GlobalMergeData& mergeData) {
-    mergeData.rMyOutput.getFactory().onSourceOperationBegin(ci.getASTContext(), file);
-  });
   
   updateASTContext(ci.getASTContext());
   updateCurrentTU(file);

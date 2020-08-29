@@ -3,6 +3,7 @@
 #include "UID.h"
 
 #include <llvm/ADT/StringRef.h>
+#include <clang/AST/Mangle.h>
 
 #include <memory>
 
@@ -25,16 +26,7 @@ namespace clang
       virtual ~UIDFactory() {}
 
       //! Creates a unique identifier (UID) for the given clang::Decl.
-      virtual std::unique_ptr<UID> create(const clang::Decl*) = 0;
-
-      //! Callback for custom code to be run at the beginning of each source operation.
-      //!  \param context reference to the clang::ASTContext
-      //!  \param filename the name of the source file
-      virtual void onSourceOperationBegin(clang::ASTContext& context, llvm::StringRef filename) {}
-
-      //! Callback for custom code to be run at the end of each source operation.
-      //!  \param context reference to the clang::ASTContext
-      virtual void onSourceOperationEnd(clang::ASTContext& context) {}
+      virtual std::unique_ptr<UID> create(const clang::Decl* decl, std::shared_ptr<clang::MangleContext> mangleContext) = 0;
     };
   }
 }
