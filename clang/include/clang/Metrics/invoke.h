@@ -19,6 +19,10 @@ namespace clang
   namespace metrics
   {
     class Output;
+    namespace detail
+    {
+      class GlobalMergeData_ThreadSafe;
+    }
 
     //! List of possible options passed to invoke().
     struct InvokeOptions
@@ -51,5 +55,20 @@ namespace clang
     //!  \param statements list of statement nodes needed to be traversed
     //!  \param options additional options specific to the metrics library
     void invoke(Output& output, clang::ASTContext& context, const std::vector<clang::Decl*>& declarations, const std::vector<clang::Stmt*>& statements, InvokeOptions options = InvokeOptions());
+
+    //! Stores data accross multiple invocation calls, threadsafe invoke method
+    //! aggregate method should be called once all invocations are finished
+    class Invocation
+    {
+      InvokeOptions options;
+      std::unique_ptr<Output> pMyOutput;
+      std::unique_ptr<detail::GlobalMergeData_ThreadSafe> pMyMergeData;
+
+    public:
+      Invocation(std::unique_ptr<Output> output, InvokeOptions options);
+      ~Invocation();
+      bool invoke(const clang::tooling::CompilationDatabase& compilations, const clang::tooling::CommandLineArguments& sourcePathList);
+      std::unique_ptr<Output> aggregate();
+    };
   }
 }
