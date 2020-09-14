@@ -391,6 +391,9 @@ private:
   // Print debug info?
   bool myDebugPrintAfterVisit = false;
 
+  // Files the this ClangMetrics is responsible for calculating metrics for
+  std::unordered_set<std::string> filesToCalculateMetrics;
+
 public:
   // This will make the clang-metrics print what is it exactly doing during analysis (which files its processing, etc)
   // This is set with the InvokeOptions
