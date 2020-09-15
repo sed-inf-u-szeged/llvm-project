@@ -58,11 +58,6 @@ bool metrics::invoke(Output& output, const CompilationDatabase& compilations, co
 
     // Aggregate metrics.
     mergeData.aggregate();
-
-    for (auto kv : mergeData.myFileIDs)
-    {
-      mergeData.filesAlreadyProcessed.insert(kv.first);
-    }
   });
 
   return true;
@@ -98,11 +93,6 @@ void metrics::invoke(Output& output, clang::ASTContext& context, const std::vect
 
     // Aggregate metrics.
     mergeData.aggregate();
-
-    for (auto kv : mergeData.myFileIDs)
-    {
-      mergeData.filesAlreadyProcessed.insert(kv.first);
-    }
   });
 }
 
@@ -132,11 +122,6 @@ std::unique_ptr<Output> Invocation::aggregate()
 
     // Aggregate metrics.
     mergeData.aggregate();
-
-    for (auto kv : mergeData.myFileIDs)
-    {
-      mergeData.filesAlreadyProcessed.insert(kv.first);
-    }
   });
 
   // Return filled output object
