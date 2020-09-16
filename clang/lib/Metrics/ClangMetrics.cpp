@@ -51,23 +51,12 @@ void ClangMetrics::aggregateMetrics()
     rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
       mergeData.rMyOutput.myTranslationUnitMetrics[myCurrentTU];
     });
-    
-    std::vector<const FileEntry*> fileEntries;
-    for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it)
-    {
-      string s = it->first->getName().str();
-      rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
-        if (mergeData.myFileIDs.find(it->first->getName().str()) != mergeData.myFileIDs.end())
-        {
-          fileEntries.push_back(it->first);
-        }
-      });
-    }
 
-    for (auto fileEntiry : fileEntries)
+    for (auto UniqueIDFilePair : visitedFiles)
     {
+      const FileEntry *fileEntry = UniqueIDFilePair.second;
       // Get line numbers.
-      FileID fid = sm.translateFile(fileEntiry);
+      FileID fid = sm.translateFile(fileEntry);
 
       unsigned lineBegin = sm.getExpansionLineNumber(sm.getLocForStartOfFile(fid));
      
@@ -82,22 +71,19 @@ void ClangMetrics::aggregateMetrics()
       // Create metrics object.
       rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
 
-        FileMetrics &m = mergeData.rMyOutput.myFileMetrics[fileEntiry->getName()];
-        if (filesToCalculateMetrics.find(fileEntiry->getName()) != filesToCalculateMetrics.end())
-        {
-          // Calculate file LOC/LLOC.
-          m.LOC = lineEnd - lineBegin + 1;
-          m.LLOC = mergeData.calculateLLOC(fileEntiry->getName(), lineBegin, lineEnd);
-          m.endLine = lineEnd;
-          m.endColumn = sm.getExpansionColumnNumber(endLoc);
+        FileMetrics &m = mergeData.rMyOutput.myFileMetrics[fileEntry->getName()];
+        // Calculate file LOC/LLOC.
+        m.LOC = lineEnd - lineBegin + 1;
+        m.LLOC = mergeData.calculateLLOC(fileEntry->getName(), lineBegin, lineEnd);
+        m.endLine = lineEnd;
+        m.endColumn = sm.getExpansionColumnNumber(endLoc);
 
-          // Load McCC from the map if there's an entry. Otherwise leave it
-          // at 1.
-          m.McCC = 1;
-          auto mcccit = myMcCCByFiles.find(fid);
-          if (mcccit != myMcCCByFiles.end())
-            m.McCC = mcccit->second + 1;
-        }
+        // Load McCC from the map if there's an entry. Otherwise leave it
+        // at 1.
+        m.McCC = 1;
+        auto mcccit = myMcCCByFiles.find(fid);
+        if (mcccit != myMcCCByFiles.end())
+          m.McCC = mcccit->second + 1;
         
         FileMetrics& tum = mergeData.rMyOutput.myTranslationUnitMetrics.at(myCurrentTU);
         // Aggregate files into TU metrics.

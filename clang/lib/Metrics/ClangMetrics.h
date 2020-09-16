@@ -206,8 +206,8 @@ public:
   // Maps unique integer IDs to filenames. Must be public for linking.
   reverse_filemap_t reverseMyFileIDs;
 
-  //Helper for linking multiple components
-  std::unordered_set<std::string> filesAlreadyProcessed;
+  //All files traversed
+  std::map<llvm::sys::fs::UniqueID, const clang::FileEntry*> files;
 
 private:
   // Stores (file ID, code line) pairs in an ordered set.
@@ -391,8 +391,8 @@ private:
   // Print debug info?
   bool myDebugPrintAfterVisit = false;
 
-  // Files the this ClangMetrics is responsible for calculating metrics for
-  std::unordered_set<std::string> filesToCalculateMetrics;
+  // All files visited by the nodeVisitor this ClangMetrics belongs to
+  std::map<llvm::sys::fs::UniqueID, const clang::FileEntry *> visitedFiles;
 
 public:
   // This will make the clang-metrics print what is it exactly doing during analysis (which files its processing, etc)

@@ -18,7 +18,11 @@ namespace
   class ASTMergeVisitor : public RecursiveASTVisitor<ASTMergeVisitor>
   {
     public:
-      ASTMergeVisitor(const ASTContext &context, const bool post, NodeList& nodes, const bool visitTemplateInstantiations, const bool visitImplicitCode, clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd = nullptr, std::unordered_set<std::string>* filesToTraverse = nullptr)
+    ASTMergeVisitor(
+        const ASTContext &context, const bool post, NodeList &nodes,
+        const bool visitTemplateInstantiations, const bool visitImplicitCode,
+        clang::metrics::detail::GlobalMergeData_ThreadSafe *gmd = nullptr,
+        std::set<llvm::sys::fs::UniqueID> *filesToTraverse = nullptr)
         : context (context)
         , post (post)
         , visitTemplateInstantiations (visitTemplateInstantiations)
@@ -71,7 +75,7 @@ namespace
       const bool visitImplicitCode;
       NodeList& nodes;
       clang::metrics::detail::GlobalMergeData_ThreadSafe* gmd;
-      std::unordered_set<std::string>* filesToTraverse;
+      std::set<llvm::sys::fs::UniqueID> *filesToTraverse;
   };
 
   void dumpNodeInfo(const NodeInfo& nodeInfo, ASTContext *context)
@@ -174,20 +178,20 @@ namespace
 
     if(fileEntry)
     {
-      auto fileName = fileEntry->getName();
+      auto fileID = fileEntry->getUniqueID();
       bool shouldTraverse = false;
-      if (filesToTraverse->count(fileName) != 0)
+      if (filesToTraverse->count(fileID) != 0)
         shouldTraverse = true;
       else
       {
         gmd->call([&](metrics::detail::GlobalMergeData& mergeData) {
           //only visit if this file was not yet visited by another thread
-          if (mergeData.filesAlreadyProcessed.count(fileName) == 0)
+          if (mergeData.files.count(fileID) == 0)
           {
-            // filesAlreadyProcessed is accessable by every thread and is used to make sure a file isn't traversed by multiple threads
-            mergeData.filesAlreadyProcessed.insert(fileName);
+            // files is accessable by every thread and is used to make sure a file isn't traversed by multiple threads
+            mergeData.files.insert(make_pair(fileID, fileEntry));
             // filesToTraverse is used to store which files this thread will traverse, so the post traverser knows which ones the pre traverser traversed
-            filesToTraverse->insert(fileName);
+            filesToTraverse->insert(fileID);
             shouldTraverse = true;
             //std::cout << "clangmetrics traversed stuff" << std::endl;
           }
@@ -223,7 +227,7 @@ ASTPrePostTraverser::ASTPrePostTraverser(const clang::ASTContext& astContext, AS
   if (astContext.getTranslationUnitDecl() != nullptr)
   {
     // Used to store which files the ASTMergeVisitor traverses, so that the pre and post will traverse the same files. This is required due to multithreading
-    std::unordered_set<std::string> filesToTraverse;
+    std::set<llvm::sys::fs::UniqueID> filesToTraverse;
     NodeList pre, post;
     ASTMergeVisitor(astContext, false, pre, visitTemplateInstantiations, visitImplicitCode, gmd, &filesToTraverse).TraverseDecl(astContext.getTranslationUnitDecl()); //ezt kell overrideolni
     ASTMergeVisitor(astContext, true, post, visitTemplateInstantiations, visitImplicitCode, gmd, &filesToTraverse).TraverseDecl(astContext.getTranslationUnitDecl());

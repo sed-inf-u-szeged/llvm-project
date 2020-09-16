@@ -568,7 +568,7 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
 
   // Add decl's file to the ClangMetrics filesToCalculateMetrics
   if (fileEntry) 
-    rMyMetrics.filesToCalculateMetrics.insert(fileEntry->getName());
+    rMyMetrics.visitedFiles.insert(std::make_pair(fileEntry->getUniqueID(), fileEntry));
 
   return true;
 }
