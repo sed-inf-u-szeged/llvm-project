@@ -52,9 +52,19 @@ void ClangMetrics::aggregateMetrics()
       mergeData.rMyOutput.myTranslationUnitMetrics[myCurrentTU];
     });
 
-    for (auto UniqueIDFilePair : visitedFiles)
+    std::vector<const FileEntry *> fileEntries;
+    for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); ++it) {
+      string s = it->first->getName().str();
+      rMyGMD.call([&](detail::GlobalMergeData &mergeData) {
+        if (mergeData.myFileIDs.find(it->first->getName().str()) !=
+            mergeData.myFileIDs.end()) {
+          fileEntries.push_back(it->first);
+        }
+      });
+    }
+
+    for (auto fileEntry : fileEntries)
     {
-      const FileEntry *fileEntry = UniqueIDFilePair.second;
       // Get line numbers.
       FileID fid = sm.translateFile(fileEntry);
 
