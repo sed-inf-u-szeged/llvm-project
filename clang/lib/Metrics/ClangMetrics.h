@@ -391,9 +391,6 @@ private:
   // Print debug info?
   bool myDebugPrintAfterVisit = false;
 
-  // All files visited by the nodeVisitor this ClangMetrics belongs to
-  std::map<llvm::sys::fs::UniqueID, const clang::FileEntry *> visitedFiles;
-
 public:
   // This will make the clang-metrics print what is it exactly doing during analysis (which files its processing, etc)
   // This is set with the InvokeOptions

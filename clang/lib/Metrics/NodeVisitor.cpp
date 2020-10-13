@@ -556,20 +556,6 @@ bool ClangMetrics::NodeVisitor::VisitDecl(const Decl *decl) {
     handleSemicolon(sm, getFunctionContext(decl), semiloc, decl->getEndLoc().isMacroID());
   }
 
-  // Get FileEntry for decl
-  SourceLocation loc = decl->getLocation();
-  FileID fileid;
-  if (loc.isMacroID())
-    fileid = sm.getFileID(sm.getExpansionLoc(loc)); // we need this, as for code in macros, the spellingloc has no file attached to it
-  else
-    fileid = sm.getFileID(loc);
-
-  const FileEntry *fileEntry = sm.getFileEntryForID(fileid);
-
-  // Add decl's file to the ClangMetrics filesToCalculateMetrics
-  if (fileEntry) 
-    rMyMetrics.visitedFiles.insert(std::make_pair(fileEntry->getUniqueID(), fileEntry));
-
   return true;
 }
 
