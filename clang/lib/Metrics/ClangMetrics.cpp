@@ -90,10 +90,14 @@ void ClangMetrics::aggregateMetrics()
 
         // Load McCC from the map if there's an entry. Otherwise leave it
         // at 1.
-        m.McCC = 1;
-        auto mcccit = myMcCCByFiles.find(fid);
-        if (mcccit != myMcCCByFiles.end())
-          m.McCC = mcccit->second + 1;
+        // If McCC is greater than 1 don't recalculate it.
+        if (m.McCC <= 1)
+        {
+          m.McCC = 1;
+          auto mcccit = myMcCCByFiles.find(fid);
+          if (mcccit != myMcCCByFiles.end())
+            m.McCC = mcccit->second + 1;
+        }
         
         FileMetrics& tum = mergeData.rMyOutput.myTranslationUnitMetrics.at(myCurrentTU);
         // Aggregate files into TU metrics.
