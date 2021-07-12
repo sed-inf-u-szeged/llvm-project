@@ -1,6 +1,6 @@
 // RUN: %clang_cc1 %s -emit-llvm -triple spir-unknown-unknown -o - -O0 | FileCheck %s
 // RUN: %clang_cc1 %s -cl-std=CL2.0 -emit-llvm -triple spir-unknown-unknown -o - -O0 | FileCheck %s
-// RUN: %clang_cc1 %s -cl-std=c++ -emit-llvm -triple spir-unknown-unknown -o - -O0 | FileCheck %s
+// RUN: %clang_cc1 %s -cl-std=clc++ -emit-llvm -triple spir-unknown-unknown -o - -O0 | FileCheck %s
 //
 // This test covers 5 cases of sampler initialzation:
 //   1. function argument passing
@@ -30,10 +30,10 @@ const sampler_t glb_smp_const = CLK_ADDRESS_CLAMP_TO_EDGE | CLK_NORMALIZED_COORD
 int get_sampler_initializer(void);
 
 void fnc4smp(sampler_t s) {}
-// CHECK: define spir_func void [[FUNCNAME:@.*fnc4smp.*]](%opencl.sampler_t addrspace(2)* %
+// CHECK: define{{.*}} spir_func void [[FUNCNAME:@.*fnc4smp.*]](%opencl.sampler_t addrspace(2)* %
 
 kernel void foo(sampler_t smp_par) {
-  // CHECK-LABEL: define spir_kernel void @foo(%opencl.sampler_t addrspace(2)* %smp_par)
+  // CHECK-LABEL: define{{.*}} spir_kernel void @foo(%opencl.sampler_t addrspace(2)* %smp_par)
   // CHECK: [[smp_par_ptr:%[A-Za-z0-9_\.]+]] = alloca %opencl.sampler_t addrspace(2)*
 
   // Case 2b

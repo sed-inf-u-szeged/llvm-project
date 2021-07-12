@@ -1,12 +1,12 @@
-========================
-LLVM 9.0.0 Release Notes
-========================
+=========================
+LLVM 12.0.0 Release Notes
+=========================
 
 .. contents::
     :local:
 
 .. warning::
-   These are in-progress notes for the upcoming LLVM 9 release.
+   These are in-progress notes for the upcoming LLVM 12 release.
    Release notes for previous releases can be found on
    `the Download Page <https://releases.llvm.org/download.html>`_.
 
@@ -15,7 +15,7 @@ Introduction
 ============
 
 This document contains the release notes for the LLVM Compiler Infrastructure,
-release 9.0.0.  Here we describe the status of LLVM, including major improvements
+release 12.0.0.  Here we describe the status of LLVM, including major improvements
 from the previous release, improvements in various subprojects of LLVM, and
 some of the current users of the code.  All LLVM releases may be downloaded
 from the `LLVM releases web site <https://llvm.org/releases/>`_.
@@ -26,7 +26,7 @@ have questions or comments, the `LLVM Developer's Mailing List
 <https://lists.llvm.org/mailman/listinfo/llvm-dev>`_ is a good place to send
 them.
 
-Note that if you are reading this file from a Subversion checkout or the main
+Note that if you are reading this file from a Git checkout or the main
 LLVM web page, this document applies to the *next* release, not the current
 one.  To see the release notes for a specific release, please see the `releases
 page <https://llvm.org/releases/>`_.
@@ -40,14 +40,9 @@ Non-comprehensive list of changes in this release
    functionality, or simply have a lot to talk about), see the `NOTE` below
    for adding a new subsection.
 
-* The optimizer will now convert calls to ``memcmp`` into a calls to ``bcmp`` in
-  some circumstances. Users who are building freestanding code (not depending on
-  the platform's libc) without specifying ``-ffreestanding`` may need to either
-  pass ``-fno-builtin-bcmp``, or provide a ``bcmp`` function.
+* The ConstantPropagation pass was removed. Users should use the InstSimplify
+  pass instead.
 
-* Two new extension points, namely ``EP_FullLinkTimeOptimizationEarly`` and
-  ``EP_FullLinkTimeOptimizationLast`` are available for plugins to specialize
-  the legacy pass manager full LTO pipeline.
 
 .. NOTE
    If you would like to document a larger change, then you can add a
@@ -59,105 +54,156 @@ Non-comprehensive list of changes in this release
 
    Makes programs 10x faster by doing Special New Thing.
 
+
 Changes to the LLVM IR
 ----------------------
 
-* Added ``immarg`` parameter attribute. This indicates an intrinsic
-  parameter is required to be a simple constant. This annotation must
-  be accurate to avoid possible miscompiles.
+* ...
 
-* The 2-field form of global variables ``@llvm.global_ctors`` and
-  ``@llvm.global_dtors`` has been deleted. The third field of their element
-  type is now mandatory. Specify `i8* null` to migrate from the obsoleted
-  2-field form.
+* Added the ``byref`` attribute to better represent argument passing
+  for the `amdgpu_kernel` calling convention.
 
-* The ``byval`` attribute can now take a type parameter:
-  ``byval(<ty>)``. If present it must be identical to the argument's
-  pointee type. In the next release we intend to make this parameter
-  mandatory in preparation for opaque pointer types.
+* Added type parameter to the ``sret`` attribute to continue work on
+  removing pointer element types.
 
-* ``atomicrmw xchg`` now allows floating point types
+* The ``llvm.experimental.vector.reduce`` family of intrinsics have been renamed
+  to drop the "experimental" from the name, reflecting their now fully supported
+  status in the IR.
 
-* ``atomicrmw`` now supports ``fadd`` and ``fsub``
 
 Changes to building LLVM
 ------------------------
 
-* Building LLVM with Visual Studio now requires version 2017 or later.
+* The internal ``llvm-build`` Python script and the associated ``LLVMBuild.txt``
+  files used to describe the LLVM component structure have been removed and
+  replaced by a pure ``CMake`` approach, where each component stores extra
+  properties in the created targets. These properties are processed once all
+  components are defined to resolve library dependencies and produce the header
+  expected by llvm-config.
 
+Changes to TableGen
+-------------------
+
+* The new "TableGen Programmer's Reference" replaces the "TableGen Language
+  Introduction" and "TableGen Language Reference" documents.
+
+* The syntax for specifying an integer range in a range list has changed.
+  The old syntax used a hyphen in the range (e.g., ``{0-9}``). The new syntax
+  uses the "`...`" range punctuation (e.g., ``{0...9}``). The hyphen syntax
+  is deprecated.
 
 Changes to the ARM Backend
 --------------------------
 
- During this release ...
-
+During this release ...
 
 Changes to the MIPS Target
 --------------------------
 
- During this release ...
+During this release ...
 
 
 Changes to the PowerPC Target
 -----------------------------
 
- During this release ...
+During this release ...
 
 Changes to the X86 Target
 -------------------------
 
- During this release ...
+During this release ...
+
+* The 'mpx' feature was removed from the backend. It had been removed from clang
+  frontend in 10.0. Mention of the 'mpx' feature in an IR file will print a
+  message to stderr, but IR should still compile.
+* Support for ``-march=alderlake``, ``-march=sapphirerapids``,
+  ``-march=znver3`` and ``-march=x86-64-v[234]`` has been added.
+* The assembler now has support for {disp32} and {disp8} pseudo prefixes for
+  controlling displacement size for memory operands and jump displacements. The
+  assembler also supports the .d32 and .d8 mnemonic suffixes to do the same.
+* A new function attribute "tune-cpu" has been added to support -mtune like gcc.
+  This allows microarchitectural optimizations to be applied independent from
+  the "target-cpu" attribute or TargetMachine CPU which will be used to select
+  Instruction Set. If the attribute is not present, the tune CPU will follow
+  the target CPU.
+* Support for ``HRESET`` instructions has been added.
+* Support for ``UINTR`` instructions has been added.
+* Support for ``AVXVNNI`` instructions has been added.
 
 Changes to the AMDGPU Target
 -----------------------------
 
-* Function call support is now enabled by default
+During this release ...
 
-* Improved support for 96-bit loads and stores
-
-* DPP combiner pass is now enabled by default
-
-* Support for gfx10
+* The new ``byref`` attribute is now the preferred method for
+  representing aggregate kernel arguments.
 
 Changes to the AVR Target
 -----------------------------
 
- During this release ...
+During this release ...
 
 Changes to the WebAssembly Target
 ---------------------------------
 
- During this release ...
-
+During this release ...
 
 Changes to the OCaml bindings
 -----------------------------
-
 
 
 Changes to the C API
 --------------------
 
 
+Changes to the Go bindings
+--------------------------
+
+
 Changes to the DAG infrastructure
 ---------------------------------
 
+
+Changes to the Debug Info
+---------------------------------
+
+During this release ...
+
+* The DIModule metadata is extended with a field to indicate if it is a
+  module declaration. This extension enables the emission of debug info
+  for a Fortran 'use <external module>' statement. For more information
+  on what the debug info entries should look like and how the debugger
+  can use them, please see test/DebugInfo/X86/dimodule-external-fortran.ll.
+
+Changes to the LLVM tools
+---------------------------------
+
+* llvm-readobj and llvm-readelf behavior has changed to report an error when
+  executed with no input files instead of reading an input from stdin.
+  Reading from stdin can still be achieved by specifying `-` as an input file.
+
+* llvm-mca supports serialization of the timeline and summary views.
+  The `--json` command line option prints a JSON representation of
+  these views to stdout.
+
 Changes to LLDB
-===============
+---------------------------------
 
-* Backtraces are now color highlighting in the terminal.
+Changes to Sanitizers
+---------------------
 
-* DWARF4 (debug_types) and DWARF5 (debug_info) type units are now supported.
+The integer sanitizer `-fsanitize=integer` now has a new sanitizer:
+`-fsanitize=unsigned-shift-base`. It's not undefined behavior for an unsigned
+left shift to overflow (i.e. to shift bits out), but it has been the source of
+bugs and exploits in certain codebases in the past.
 
-* This release will be the last where ``lldb-mi`` is shipped as part of LLDB.
-  The tool will still be available in a `downstream repository on GitHub
-  <https://github.com/lldb-tools/lldb-mi>`_.
+Many Sanitizers (asan, cfi, lsan, msan, tsan, ubsan) have support for
+musl-based Linux distributions. Some of them may be rudimentary.
 
-External Open Source Projects Using LLVM 9
-==========================================
+External Open Source Projects Using LLVM 12
+===========================================
 
 * A project...
-
 
 Additional Information
 ======================
@@ -165,7 +211,7 @@ Additional Information
 A wide variety of additional information is available on the `LLVM web page
 <https://llvm.org/>`_, in particular in the `documentation
 <https://llvm.org/docs/>`_ section.  The web page also contains versions of the
-API documentation which is up-to-date with the Subversion version of the source
+API documentation which is up-to-date with the Git version of the source
 code.  You can access versions of these documents specific to this release by
 going into the ``llvm/docs/`` directory in the LLVM tree.
 
