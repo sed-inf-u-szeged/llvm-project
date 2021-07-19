@@ -1,4 +1,5 @@
 #include <clang/Metrics/ASTPrePostVisitor.h>
+#include <clang/Basic/SourceManager.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include "ClangMetrics.h"

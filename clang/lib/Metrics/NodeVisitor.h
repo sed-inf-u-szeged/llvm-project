@@ -2,6 +2,8 @@
 
 #include "ClangMetrics.h"
 #include <clang/Metrics/RecursiveASTPrePostVisitor.h>
+#include <clang/AST/ParentMapContext.h>
+
 #include <unordered_set>
 
 // Inner class implementing Clang's RecursiveASTVisitor pattern. Defines callbacks to the AST.
@@ -153,7 +155,7 @@ private:
     using namespace clang;
 
     ASTContext* con = rMyMetrics.getASTContext();
-    ASTContext::DynTypedNodeList parents = con->getParents(*node);
+    DynTypedNodeList parents = con->getParents(*node);
 
     auto it = parents.begin();
     if (it == parents.end())

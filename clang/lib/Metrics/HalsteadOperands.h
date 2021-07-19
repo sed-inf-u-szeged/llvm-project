@@ -159,7 +159,9 @@ HALSTEAD_DERIVE(IntegerLiteralOperand, IntegerLiteral)
 
   std::string getDebugName() const override
   {
-    return Derive::getDebugName() + " (" + pMyData->getValue().toString(10, false) + ")";
+	SmallString<40> ss;
+    pMyData->getValue().toString(ss, 10, false);
+    return Derive::getDebugName() + " (" + ss.str().str() + ")";
   }
 
   // Two operands are considered to be the same if and only if their value matches.
@@ -275,8 +277,12 @@ private:
       break;
 
     case Halstead::UserDefinedLiteralOperand::INTEGER:
-      ret = pMyIntegerLit->getValue().toString(10, false);
+    {
+      SmallString<40> ss;
+      pMyIntegerLit->getValue().toString(ss, 10, false);
+      ret = ss.str().str();
       break;
+    }
 
     case Halstead::UserDefinedLiteralOperand::FLOATING:
       ret = std::to_string(pMyFloatingLit->getValueAsApproximateDouble());

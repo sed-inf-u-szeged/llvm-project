@@ -2,6 +2,8 @@
 
 #include <clang/Metrics/MetricsUtility.h>
 #include <clang/Lex/Preprocessor.h>
+#include <clang/AST/ParentMapContext.h>
+#include <clang/AST/ASTTypeTraits.h>
 // Use clang namespace for simplicity
 using namespace clang;
 using namespace metrics::detail;
@@ -1497,7 +1499,7 @@ const Decl *ClangMetrics::NodeVisitor::getDeclFromStmt(const Stmt &stmt) {
 const clang::FunctionDecl* ClangMetrics::NodeVisitor::getLambdaAncestor(const clang::Stmt &stmt) {
   ASTContext *con = rMyMetrics.getASTContext();
 
-  ast_type_traits::DynTypedNode elem = ast_type_traits::DynTypedNode::create(stmt);
+  DynTypedNode elem = DynTypedNode::create(stmt);
   for (size_t i = 0; i < 2; i++)
   {
     auto parents = con->getParents(elem);
@@ -1514,12 +1516,12 @@ const clang::FunctionDecl* ClangMetrics::NodeVisitor::getLambdaAncestor(const cl
       }
       else
       {
-        elem = ast_type_traits::DynTypedNode::create(*parentStmt);
+        elem = DynTypedNode::create(*parentStmt);
       }
     }
     else if (const Decl* parentDecl = it->get<Decl>())
     {
-      elem = ast_type_traits::DynTypedNode::create(*parentDecl);
+      elem = DynTypedNode::create(*parentDecl);
     }
   }
   return nullptr;

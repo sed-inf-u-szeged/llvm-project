@@ -1,6 +1,7 @@
 #include <clang/Metrics/BasicUID.h>
-
+#include <clang/Basic/SourceManager.h>
 #include <clang/AST/ASTContext.h>
+#include <clang/AST/Mangle.h>
 #include <llvm/Support/raw_ostream.h>
 #include <clang/Metrics/RecursiveASTPrePostVisitor.h>
 
@@ -26,11 +27,12 @@ std::unique_ptr<metrics::UID> metrics::BasicUIDFactory::create(const clang::Decl
         ss << "//" << sm.getFilename(cast<FunctionDecl>(decl)->getLocation());
       }
 
+
       // Use the built-in mangler to get the mangled name for the function.
       if (CXXConstructorDecl::classof(decl))
-        mangleContext->mangleCXXCtor(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete, ss);
+        mangleContext->mangleName(GlobalDecl(cast<CXXConstructorDecl>(decl), CXXCtorType::Ctor_Complete), ss);
       else if (CXXDestructorDecl::classof(decl))
-        mangleContext->mangleCXXDtor(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete, ss);
+        mangleContext->mangleName(GlobalDecl(cast<CXXDestructorDecl>(decl), CXXDtorType::Dtor_Complete), ss);
       else
         mangleContext->mangleName(cast<FunctionDecl>(decl), ss);
     }

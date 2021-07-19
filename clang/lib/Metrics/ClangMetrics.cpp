@@ -1,5 +1,5 @@
 #include "ClangMetrics.h"
-
+#include <clang/Basic/SourceManager.h>
 #include <clang/Metrics/Output.h>
 #include <clang/Metrics/MetricsUtility.h>
 #include <clang/Metrics/RecursiveASTPrePostVisitor.h>
@@ -81,10 +81,10 @@ void ClangMetrics::aggregateMetrics()
       // Create metrics object.
       rMyGMD.call([&](detail::GlobalMergeData& mergeData) {
 
-        FileMetrics &m = mergeData.rMyOutput.myFileMetrics[fileEntry->getName()];
+        FileMetrics &m = mergeData.rMyOutput.myFileMetrics[fileEntry->getName().str()];
         // Calculate file LOC/LLOC.
         m.LOC = lineEnd - lineBegin + 1;
-        m.LLOC = mergeData.calculateLLOC(fileEntry->getName(), lineBegin, lineEnd);
+        m.LLOC = mergeData.calculateLLOC(fileEntry->getName().str(), lineBegin, lineEnd);
         m.endLine = lineEnd;
         m.endColumn = sm.getExpansionColumnNumber(endLoc);
 
@@ -157,7 +157,7 @@ void GlobalMergeData::addDecl(const Decl* decl, ClangMetrics& currentAnalyzer)
     SourceLocation end = decl->getEndLoc();
 
     Range r;
-    r.fileID = fileid(sm.getFilename(start));
+    r.fileID = fileid(sm.getFilename(start).str());
     r.lineBegin = sm.getExpansionLineNumber(start);
     r.lineEnd = sm.getExpansionLineNumber(end);
     r.columnBegin = sm.getExpansionColumnNumber(start);
@@ -377,7 +377,7 @@ void GlobalMergeData::addCodeLine(SourceLocation loc, ClangMetrics& currentAnaly
   if(loc.isMacroID())
     loc = sm.getExpansionLoc(loc);
 
-  unsigned fid = fileid(sm.getFilename(loc));
+  unsigned fid = fileid(sm.getFilename(loc).str());
   if (fid == 0)
     return;
 
@@ -391,7 +391,7 @@ const GlobalMergeData::Range* clang::metrics::detail::GlobalMergeData::getParent
 
   SourceManager& sm = currentAnalyzer.getASTContext()->getSourceManager();
 
-  unsigned file   = fileid(sm.getFilename(loc));
+  unsigned file   = fileid(sm.getFilename(loc).str());
   unsigned line   = sm.getExpansionLineNumber(loc);
   unsigned column = sm.getExpansionColumnNumber(loc);
 
@@ -725,7 +725,7 @@ GlobalMergeData::createRange(Range::range_t type, SourceLocation start, SourceLo
     end = sm.getExpansionLoc(end);
   }
 
-  return createRange(type, sm.getFilename(start), sm.getExpansionLineNumber(start),
+  return createRange(type, sm.getFilename(start).str(), sm.getExpansionLineNumber(start),
     sm.getExpansionLineNumber(end), sm.getExpansionColumnNumber(start), sm.getExpansionColumnNumber(end), parent, operation);
 }
 

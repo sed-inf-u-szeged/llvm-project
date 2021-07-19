@@ -22,12 +22,12 @@ public:
     rMyOptions(options)
   {}
 
-  FrontendAction* create() override
+  std::unique_ptr<FrontendAction> create() override
   {
     metrics::detail::ClangMetricsAction* ptr = new metrics::detail::ClangMetricsAction(rMyData);
     ptr->debugPrintHalsteadAfterVisit(rMyOptions.enableHalsteadDebugPrint);
     ptr->shouldPrintTracingInfo = rMyOptions.enableProcessingTracePrint;
-    return ptr;
+    return std::unique_ptr<FrontendAction>(ptr);
   }
 
 private:

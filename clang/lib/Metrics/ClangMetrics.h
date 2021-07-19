@@ -6,6 +6,7 @@
 
 #include <clang/Metrics/UID.h>
 #include <clang/Metrics/Output.h>
+#include <llvm/Support/FileSystem/UniqueID.h>
 
 #include <clang/AST/Decl.h>
 #include <unordered_map>
@@ -283,7 +284,7 @@ public:
   // Update the current compilation unit file
   void updateCurrentTU(StringRef currentTU)
   {
-    myCurrentTU = currentTU;
+    myCurrentTU = currentTU.str();
   }
 
   // Returns a pointer to the actual AST context
