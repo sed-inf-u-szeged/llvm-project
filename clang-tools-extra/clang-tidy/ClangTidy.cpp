@@ -292,14 +292,14 @@ public:
   unsigned getWarningsAsErrorsCount() const { return WarningsAsErrors; }
 
 private:
-  string escapeStr(string str){
-        vector<pair<regex,string>> escapeChars;
-        escapeChars.push_back(make_pair(regex("&"), "&amp;"));
-        escapeChars.push_back(make_pair(regex(">"), "&gt;"));
-        escapeChars.push_back(make_pair(regex("<"), "&lt;"));
-        escapeChars.push_back(make_pair(regex("\'"), "&apos;"));
-        escapeChars.push_back(make_pair(regex("\""), "&quot;"));
-        escapeChars.push_back(make_pair(regex("\n"), "\\n"));
+  std::string escapeStr(std::string str){
+        std::vector<std::pair<std::regex, std::string>> escapeChars;
+        escapeChars.push_back(std::make_pair(std::regex("&"), "&amp;"));
+        escapeChars.push_back(std::make_pair(std::regex(">"), "&gt;"));
+        escapeChars.push_back(std::make_pair(std::regex("<"), "&lt;"));
+        escapeChars.push_back(std::make_pair(std::regex("\'"), "&apos;"));
+        escapeChars.push_back(std::make_pair(std::regex("\""), "&quot;"));
+        escapeChars.push_back(std::make_pair(std::regex("\n"), "\\n"));
         for(auto it : escapeChars){
                 str = regex_replace(str,it.first,it.second);
         }
@@ -652,7 +652,7 @@ void handleErrors(llvm::ArrayRef<ClangTidyError> Errors,
   if(!XMLPath.empty()){
     //Opening xml file
     std::error_code EC;
-    OS = llvm::make_unique<llvm::raw_fd_ostream>(XMLPath.str(), EC, llvm::sys::fs::F_None);
+    OS = std::make_unique<llvm::raw_fd_ostream>(XMLPath.str(), EC, llvm::sys::fs::F_None);
     if (EC) {
       llvm::errs() << "Error opening output file: " << EC.message() << '\n';
       OS = nullptr;
