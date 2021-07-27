@@ -555,10 +555,12 @@ bool RecursiveASTVisitor<Derived>::PostVisitStmt(Stmt *S) {
     if (::clang::detail::isSameMethod(&RecursiveASTVisitor::Traverse##CLASS,   \
                                       &Derived::Traverse##CLASS)) {            \
       auto ILE = static_cast<CLASS *>(S);                                      \
+      if (getDerived().shouldVisitImplicitCode()) {                            \
+        if (auto Sem = ILE->isSemanticForm() ? ILE : ILE->getSemanticForm())   \
+          TRY_TO(WalkUpFrom##CLASS(Sem));                                      \
+      }                                                                        \
       if (auto Syn = ILE->isSemanticForm() ? ILE->getSyntacticForm() : ILE)    \
         TRY_TO(WalkUpFrom##CLASS(Syn));                                        \
-      if (auto Sem = ILE->isSemanticForm() ? ILE : ILE->getSemanticForm())     \
-        TRY_TO(WalkUpFrom##CLASS(Sem));                                        \
     }                                                                          \
     break;
 #include "clang/AST/StmtNodes.inc"
@@ -1895,7 +1897,7 @@ DEF_TRAVERSE_DECL(CXXRecordDecl, { TRY_TO(TraverseCXXRecordHelper(D)); })
          declaration context of the *TemplateSpecializationDecl                \
          (embedded in the DEF_TRAVERSE_DECL() macro)                           \
          which contains the instantiated members of the template. */           \
-      return true;                                                             \
+      ShouldVisitChildren = false;                                             \
   })
 
 DEF_TRAVERSE_TMPL_SPEC_DECL(Class)
