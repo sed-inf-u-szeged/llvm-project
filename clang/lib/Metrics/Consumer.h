@@ -19,6 +19,9 @@ namespace clang
 
         void HandleTranslationUnit(clang::ASTContext& context)
         {
+          auto printingPolicy = context.getPrintingPolicy();
+          printingPolicy.SuppressInlineNamespace = false;
+          context.setPrintingPolicy(printingPolicy);
           ASTPrePostTraverser traverser(context, myVisitor, &gmd);
           traverser.run();
         }
