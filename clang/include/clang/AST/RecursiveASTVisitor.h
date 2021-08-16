@@ -555,6 +555,10 @@ bool RecursiveASTVisitor<Derived>::PostVisitStmt(Stmt *S) {
     if (::clang::detail::isSameMethod(&RecursiveASTVisitor::Traverse##CLASS,   \
                                       &Derived::Traverse##CLASS)) {            \
       auto ILE = static_cast<CLASS *>(S);                                      \
+      if (ILE->isSemanticForm() && ILE->isSyntacticForm()) {                   \
+        TRY_TO(WalkUpFrom##CLASS(ILE));                                        \
+        return true;                                                           \
+      }                                                                        \
       if (getDerived().shouldVisitImplicitCode()) {                            \
         if (auto Sem = ILE->isSemanticForm() ? ILE : ILE->getSemanticForm())   \
           TRY_TO(WalkUpFrom##CLASS(Sem));                                      \
